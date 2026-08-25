@@ -92,7 +92,10 @@ jobs:
 
 [`worker-deploy.yml`](.github/workflows/worker-deploy.yml) — optional D1
 migrations, `wrangler deploy --env <env>`, health smoke test; called once per
-environment:
+environment. The smoke test requires an actual `200` (an Access login
+redirect does not count); for Access-protected Workers set the
+`ACCESS_CLIENT_ID` / `ACCESS_CLIENT_SECRET` repository secrets to an Access
+service token that a Service Auth policy on the app allows:
 
 ```yaml
 jobs:

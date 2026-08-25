@@ -23,3 +23,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   production Worker.
 - `.gitignore` now un-ignores `.dev.vars.example` (the committed secrets
   template) instead of the stale `.env.example`.
+- The deploy smoke test now requires an actual HTTP 200 instead of accepting
+  any non-4xx/5xx response — behind Cloudflare Access it silently passed on
+  the login redirect without ever exercising the Worker. It can authenticate
+  with an Access service token via new optional `access-client-id` /
+  `access-client-secret` secrets on `worker-deploy.yml`.

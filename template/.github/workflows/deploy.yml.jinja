@@ -14,6 +14,8 @@ name: Deploy
 #
 # Requires two repository secrets (see README.md):
 #   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID
+# and, only when HEALTH_URL sits behind Cloudflare Access, the optional
+#   ACCESS_CLIENT_ID, ACCESS_CLIENT_SECRET  (an Access service token)
 on:
   push:
     branches:
@@ -41,6 +43,8 @@ jobs:
     secrets:
       cloudflare-api-token: ${{ '{{' }} secrets.CLOUDFLARE_API_TOKEN {{ '}}' }}
       cloudflare-account-id: ${{ '{{' }} secrets.CLOUDFLARE_ACCOUNT_ID {{ '}}' }}
+      access-client-id: ${{ '{{' }} secrets.ACCESS_CLIENT_ID {{ '}}' }}
+      access-client-secret: ${{ '{{' }} secrets.ACCESS_CLIENT_SECRET {{ '}}' }}
 
   production:
     needs: staging
@@ -55,6 +59,8 @@ jobs:
     secrets:
       cloudflare-api-token: ${{ '{{' }} secrets.CLOUDFLARE_API_TOKEN {{ '}}' }}
       cloudflare-account-id: ${{ '{{' }} secrets.CLOUDFLARE_ACCOUNT_ID {{ '}}' }}
+      access-client-id: ${{ '{{' }} secrets.ACCESS_CLIENT_ID {{ '}}' }}
+      access-client-secret: ${{ '{{' }} secrets.ACCESS_CLIENT_SECRET {{ '}}' }}
 {% else %}
   production:
     uses: {{ github_owner }}/cloudflare-worker-template/.github/workflows/worker-deploy.yml@v1
@@ -68,4 +74,6 @@ jobs:
     secrets:
       cloudflare-api-token: ${{ '{{' }} secrets.CLOUDFLARE_API_TOKEN {{ '}}' }}
       cloudflare-account-id: ${{ '{{' }} secrets.CLOUDFLARE_ACCOUNT_ID {{ '}}' }}
+      access-client-id: ${{ '{{' }} secrets.ACCESS_CLIENT_ID {{ '}}' }}
+      access-client-secret: ${{ '{{' }} secrets.ACCESS_CLIENT_SECRET {{ '}}' }}
 {% endif %}
