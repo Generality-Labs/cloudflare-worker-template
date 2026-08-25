@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Repo settings as code: the scaffold ships `.github/repo-settings.json`
+  (the literal `PATCH /repos/{owner}/{repo}` body — merge methods,
+  `delete_branch_on_merge: true` so stacked PRs retarget, wiki/projects
+  toggles) and `.github/rulesets/main.json` (protect the default branch: PRs
+  required, no force-pushes or deletion, `ci / Type-check and test` must
+  pass; repo Admins bypass), plus `scripts/setup-repo.sh`, which idempotently
+  PATCHes the settings and creates or updates each ruleset by name. The
+  template repo carries its own copies of both files, and
+  `org/worker-repos-ruleset.json` is a draft org-level ruleset to apply once
+  the org is on GitHub Team.
+
 ## [1.0.0] - 2026-08-25
 
 ### Changed

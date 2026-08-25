@@ -16,6 +16,10 @@ _message_after_copy: |
     npm install
     npm test
     git init && git add -A && git commit -m "Initial commit"
+
+  Once the repo exists on GitHub, apply its settings and rulesets
+  (idempotent; edit .github/rulesets/*.json first if needed):
+    bash scripts/setup-repo.sh
   {% if use_d1 %}
   Create the deployed D1 database(s) and paste each returned id into wrangler.toml:
     npx wrangler d1 create {{ project_name }}
