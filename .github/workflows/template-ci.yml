@@ -37,6 +37,10 @@ jobs:
         # instead of the branch under review.
         run: |
           set -euo pipefail
+          # `! cmd` is exempt from errexit (SC2251), so a bare `! grep`
+          # assertion can never fail the job — negative asserts go through
+          # this helper instead.
+          refute() { if "$@"; then echo "refute failed: $*" >&2; exit 1; fi; }
           uvx copier copy --trust --defaults --vcs-ref=HEAD \
             --data project_name="sample-min" \
             --data project_description="A minimal sample worker" \
@@ -69,13 +73,13 @@ jobs:
           # Environments: full has staging everywhere, min nowhere; both
           # repeat bindings per environment (wrangler envs don't inherit).
           grep -q '\[env.staging\]' /tmp/out-full/wrangler.toml
-          ! grep -q '\[env.staging\]' /tmp/out-min/wrangler.toml
+          refute grep -q '\[env.staging\]' /tmp/out-min/wrangler.toml
           grep -q '\[\[env.production.d1_databases\]\]' /tmp/out-full/wrangler.toml
           grep -q '\[\[env.staging.d1_databases\]\]' /tmp/out-full/wrangler.toml
           grep -q 'needs: staging' /tmp/out-full/.github/workflows/deploy.yml
-          ! grep -q 'staging' /tmp/out-min/.github/workflows/deploy.yml
+          refute grep -q 'staging' /tmp/out-min/.github/workflows/deploy.yml
           grep -q 'migrations-script: migrations:prod' /tmp/out-full/.github/workflows/deploy.yml
-          ! grep -q 'migrations-script' /tmp/out-min/.github/workflows/deploy.yml
+          refute grep -q 'migrations-script' /tmp/out-min/.github/workflows/deploy.yml
 
           # The local-dev top level must never share the production Worker's
           # name — a bare `wrangler deploy` (no --env) would clobber it.
@@ -94,7 +98,7 @@ jobs:
             --data use_typos=false \
             . /tmp/out-no-typos
           grep -q "crate-ci/typos" /tmp/out-min/.pre-commit-config.yaml
-          ! grep -q "crate-ci/typos" /tmp/out-no-typos/.pre-commit-config.yaml
+          refute grep -q "crate-ci/typos" /tmp/out-no-typos/.pre-commit-config.yaml
 
           # answering no to the update workflow drops it but KEEPS the answers
           # file, so `copier update` by hand still works

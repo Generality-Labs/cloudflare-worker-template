@@ -28,3 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   the login redirect without ever exercising the Worker. It can authenticate
   with an Access service token via new optional `access-client-id` /
   `access-client-secret` secrets on `worker-deploy.yml`.
+- Template CI's negative content assertions (`! grep …`) never actually
+  enforced anything: `!` exempts a command from errexit (SC2251), so a failing
+  assert couldn't fail the job. They now go through a `refute` helper that
+  exits explicitly.
