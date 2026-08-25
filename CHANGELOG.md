@@ -19,6 +19,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `scripts/set-public-access.sh <on|off|status>`: toggle whether the
+  production Worker is publicly reachable by attaching/detaching a named
+  Bypass policy on its Cloudflare Access app, with typed confirmation for the
+  public direction and outside-in verification; plus a README section on the
+  staging-behind-Access convention and smoke-testing through Access with a
+  service token.
 - Secrets workflow: a committed `.dev.vars.example` declares the Worker's
   secret names (with an `# optional` marker for ones an environment may
   lack); gitignored `.dev.vars.<env>` copies hold the values; and

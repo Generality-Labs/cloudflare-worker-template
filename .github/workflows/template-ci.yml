@@ -105,6 +105,10 @@ jobs:
           test -x /tmp/out-min/scripts/put-secrets.sh
           bash -n /tmp/out-min/scripts/put-secrets.sh
 
+          # Access toggle script: rendered, executable, parseable.
+          test -x /tmp/out-min/scripts/set-public-access.sh
+          bash -n /tmp/out-min/scripts/set-public-access.sh
+
           # use_typos defaults on, and answering no drops the hook
           uvx copier copy --trust --defaults --vcs-ref=HEAD \
             --data project_name="sample-no-typos" \

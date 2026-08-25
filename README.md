@@ -92,6 +92,36 @@ All the copies are gitignored; only `.dev.vars.example` is committed. Note
 that `wrangler secret put` creates a new Worker version — long-running
 Workflow instances keep the version (and secrets) they started with.
 
+## Cloudflare Access in front of deployed Workers
+
+The org convention: every deployed Worker hostname sits behind a Cloudflare
+Access one-click app from day one — staging *stays* behind it permanently, so
+half-baked deploys can never leak; production stays behind it until launch.
+Turn it on per Worker in the dashboard (Workers & Pages -> the Worker ->
+Settings -> Domains & Routes -> workers.dev -> Enable Cloudflare Access).
+
+**Smoke tests through Access.** The deploy smoke test requires a real 200, so
+an Access-protected `HEALTH_URL` needs a service token: in Zero Trust ->
+Access -> Service Auth, create a token; on each protected Access app add a
+policy with decision **Service Auth** that includes that token; then set the
+token's id/secret as the `ACCESS_CLIENT_ID` / `ACCESS_CLIENT_SECRET`
+*repository* secrets (they resolve in the caller's context, like the
+Cloudflare ones).
+
+**Making production public at launch** — `scripts/set-public-access.sh
+<on|off|status>` attaches/detaches a named Bypass policy on the production
+app without touching the app's own policies, so `off` restores exactly the
+prior state; it verifies the live behaviour from outside afterwards, and the
+`on` direction asks for typed confirmation (or `--yes` non-interactively).
+
+Two hard-won API-token notes (they apply to the script, which is why it reads
+`CLOUDFLARE_API_TOKEN` from the environment rather than reusing CI's):
+editing Access needs an *account-scoped* token with BOTH "Access: Apps" and
+"Access: Policies" write (Policies-only looks fine right up until `POST apps`
+fails with `[1010] auth.forbidden`); and keep Access-editing rights out of
+the CI deploy token — mint short-TTL tokens for the occasional toggle
+instead. Also note Access does not log requests a Bypass policy admits.
+
 ## The reusable workflows
 
 Generated projects call these rather than duplicating CI. To bump CI for every
