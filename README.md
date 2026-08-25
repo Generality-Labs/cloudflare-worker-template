@@ -31,9 +31,9 @@ uvx copier copy gh:Generality-Labs/cloudflare-worker-template my-new-worker
 ```
 
 You'll be asked for the name and description, whether to add a staging
-environment, which resources the Worker uses (D1, R2, cron triggers), the Node
-version, and whether to run the typos spell-checker and the automatic
-template-update PRs.
+environment, which resources the Worker uses (D1, R2, KV, cron triggers), the
+Node version, and whether to add a Playwright e2e setup, run the typos
+spell-checker, and open the automatic template-update PRs.
 
 After scaffolding, the copier message lists the resource-creation commands
 (`wrangler d1 create` / `wrangler r2 bucket create`) whose ids/names go into

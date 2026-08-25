@@ -42,6 +42,14 @@ binding = "BUCKET"
 bucket_name = "{{ project_name }}-dev"
 
 {% endif %}
+{% if use_kv %}
+# Local development/test namespace — simulated locally, so the id is a
+# placeholder that never has to exist.
+[[kv_namespaces]]
+binding = "KV"
+id = "00000000000000000000000000000000"
+
+{% endif %}
 {% if use_cron %}
 # Local only (the top level is never deployed). Exercise the scheduled
 # handler with `npx wrangler dev --test-scheduled`, then:
@@ -71,6 +79,14 @@ binding = "BUCKET"
 bucket_name = "{{ project_name }}-staging"
 
 {% endif %}
+{% if use_kv %}
+# Create with `npx wrangler kv namespace create {{ project_name }}-staging`
+# and paste the returned id here.
+[[env.staging.kv_namespaces]]
+binding = "KV"
+id = "TODO"
+
+{% endif %}
 {% if use_cron %}
 # Delete this block if the cron must not also run in staging (gotcha 2).
 [env.staging.triggers]
@@ -96,6 +112,14 @@ migrations_dir = "migrations"
 [[env.production.r2_buckets]]
 binding = "BUCKET"
 bucket_name = "{{ project_name }}"
+{% endif %}
+{% if use_kv %}
+
+# Create with `npx wrangler kv namespace create {{ project_name }}` and paste
+# the returned id here.
+[[env.production.kv_namespaces]]
+binding = "KV"
+id = "TODO"
 {% endif %}
 {% if use_cron %}
 

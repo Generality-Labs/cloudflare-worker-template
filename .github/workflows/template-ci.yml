@@ -50,7 +50,7 @@ jobs:
             --data project_description="A full sample worker" \
             --data use_staging=true --data use_d1=true \
             --data use_r2=true --data use_cron=true \
-            --data use_playwright=true \
+            --data use_playwright=true --data use_kv=true \
             . /tmp/out-full
 
           for out in /tmp/out-min /tmp/out-full; do
@@ -124,6 +124,11 @@ jobs:
           grep -q 'e2e-gate:' /tmp/out-full/.github/workflows/deploy.yml
           test -x /tmp/out-min/scripts/setup-resources.sh
           bash -n /tmp/out-min/scripts/setup-resources.sh
+
+          # KV is opt-in and repeated per environment (envs don't inherit).
+          grep -q '\[\[env.production.kv_namespaces\]\]' /tmp/out-full/wrangler.toml
+          grep -q '\[\[env.staging.kv_namespaces\]\]' /tmp/out-full/wrangler.toml
+          refute grep -q 'kv_namespaces' /tmp/out-min/wrangler.toml
 
           # use_typos defaults on, and answering no drops the hook
           uvx copier copy --trust --defaults --vcs-ref=HEAD \

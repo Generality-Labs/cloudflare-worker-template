@@ -23,6 +23,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `use_kv` option: per-environment `[[kv_namespaces]]` bindings (placeholder
+  id at the local-dev top level, `wrangler kv namespace create` instructions
+  for staging/production) and a KV round-trip smoke test.
 - README sections for the operational gotchas paid for in logfile-upload
   incidents (wrangler r2 local-vs-remote default, queue/DLQ triage, Workflow
   instance-id and createBatch quirks, container deploy-churn lessons,
