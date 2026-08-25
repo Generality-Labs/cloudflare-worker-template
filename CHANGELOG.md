@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   generated `worker-configuration.d.ts` is gitignored and the hand-maintained
   `Cloudflare.Env` declaration block is gone (declare only secrets by hand —
   the generator can't see those).
+- The single `cors.json` is now per-environment (`cors.dev.json`,
+  `cors.staging.json`, `cors.production.json`) so dev origins like localhost
+  can never be applied to the production bucket.
 
 ### Added
 

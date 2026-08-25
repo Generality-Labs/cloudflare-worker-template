@@ -65,10 +65,16 @@ jobs:
           done
 
           # Feature files present for full, absent for min
-          for f in migrations/0001_init.sql cors.json test/env.d.ts test/apply-migrations.ts; do
+          for f in migrations/0001_init.sql cors.dev.json cors.staging.json \
+            cors.production.json test/env.d.ts test/apply-migrations.ts; do
             test -e "/tmp/out-full/$f"
             test ! -e "/tmp/out-min/$f"
           done
+
+          # Localhost origins belong to the dev CORS rules only.
+          grep -q localhost /tmp/out-full/cors.dev.json
+          refute grep -q localhost /tmp/out-full/cors.production.json
+          refute grep -q localhost /tmp/out-full/cors.staging.json
 
           # Environments: full has staging everywhere, min nowhere; both
           # repeat bindings per environment (wrangler envs don't inherit).
