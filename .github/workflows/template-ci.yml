@@ -130,6 +130,11 @@ jobs:
           grep -q '\[\[env.staging.kv_namespaces\]\]' /tmp/out-full/wrangler.toml
           refute grep -q 'kv_namespaces' /tmp/out-min/wrangler.toml
 
+          # Repo settings-as-code: apply script + ruleset JSON render intact.
+          test -x /tmp/out-min/scripts/setup-repo.sh
+          bash -n /tmp/out-min/scripts/setup-repo.sh
+          python3 -c "import json,sys; json.load(open(sys.argv[1]))" /tmp/out-min/.github/rulesets/main.json
+
           # use_typos defaults on, and answering no drops the hook
           uvx copier copy --trust --defaults --vcs-ref=HEAD \
             --data project_name="sample-no-typos" \
