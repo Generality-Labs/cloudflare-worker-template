@@ -26,6 +26,15 @@ on:
         description: Also run the pre-commit stack.
         type: boolean
         default: true
+      run-online-audits:
+        description: >
+          Also run zizmor's online audits (the manual-stage pre-commit hook).
+          They query the GitHub API about every repo referenced in `uses:`,
+          and the default GITHUB_TOKEN cannot read this (private) template
+          repo — so for consumers the audit errors out. Enable only when the
+          job's token can read everything the workflows reference.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -77,5 +86,11 @@ jobs:
       - name: Pre-commit (Biome, actionlint, zizmor, mdformat)
         if: ${{ inputs.run-precommit }}
         env:
-          GH_TOKEN: ${{ github.token }} # lets zizmor's online checks query the GitHub API
-        run: uvx pre-commit run --show-diff-on-failure --color=always --all-files --hook-stage manual
+          GH_TOKEN: ${{ github.token }} # used by zizmor's online checks when enabled
+          RUN_ONLINE_AUDITS: ${{ inputs.run-online-audits }}
+        run: |
+          args=(run --show-diff-on-failure --color=always --all-files)
+          if [ "$RUN_ONLINE_AUDITS" = "true" ]; then
+            args+=(--hook-stage manual)
+          fi
+          uvx pre-commit "${args[@]}"

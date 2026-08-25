@@ -47,7 +47,10 @@ After scaffolding, the copier message lists the resource-creation commands
 
 Deployed targets are named wrangler environments; the top level of
 `wrangler.toml` is what `wrangler dev` and the test pool read, pointing at
-`-dev` resources that are simulated locally. Two wrangler gotchas the scaffold
+`-dev` resources that are simulated locally. The top-level Worker *name* is
+suffixed `-dev` too, so a bare `wrangler deploy` (without `--env`) can never
+overwrite the deployed production Worker — it would create a separate
+`<name>-dev` Worker instead. Two wrangler gotchas the scaffold
 encodes, because everyone hits them once:
 
 1. **Named environments do not inherit bindings.** `[[d1_databases]]`,
@@ -89,7 +92,10 @@ jobs:
 
 [`worker-deploy.yml`](.github/workflows/worker-deploy.yml) — optional D1
 migrations, `wrangler deploy --env <env>`, health smoke test; called once per
-environment:
+environment. The smoke test requires an actual `200` (an Access login
+redirect does not count); for Access-protected Workers set the
+`ACCESS_CLIENT_ID` / `ACCESS_CLIENT_SECRET` repository secrets to an Access
+service token that a Service Auth policy on the app allows:
 
 ```yaml
 jobs:

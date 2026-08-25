@@ -15,3 +15,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `worker-deploy.yml` workflows, the shared pre-commit stack (Biome, zizmor,
   actionlint, mdformat, optional typos), and copier template-update
   machinery.
+
+### Fixed
+
+- The scaffolded top-level (local-dev) Worker name is now `<project>-dev`, so
+  a bare `wrangler deploy` without `--env` can no longer deploy over the
+  production Worker.
+- `.gitignore` now un-ignores `.dev.vars.example` (the committed secrets
+  template) instead of the stale `.env.example`.
+- The deploy smoke test now requires an actual HTTP 200 instead of accepting
+  any non-4xx/5xx response — behind Cloudflare Access it silently passed on
+  the login redirect without ever exercising the Worker. It can authenticate
+  with an Access service token via new optional `access-client-id` /
+  `access-client-secret` secrets on `worker-deploy.yml`.
+- Template CI's negative content assertions (`! grep …`) never actually
+  enforced anything: `!` exempts a command from errexit (SC2251), so a failing
+  assert couldn't fail the job. They now go through a `refute` helper that
+  exits explicitly.
+- `worker-ci.yml` no longer runs zizmor's online audits by default: they need
+  a token that can read every repo referenced in `uses:`, which the default
+  GITHUB_TOKEN cannot (this template repo is private), so every consumer's CI
+  failed. Opt back in with the new `run-online-audits` input.

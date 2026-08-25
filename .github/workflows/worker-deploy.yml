@@ -9,7 +9,9 @@ name: Worker Deploy
 # is where approval gates live: add required reviewers to the `production`
 # GitHub environment and the staging -> production hand-off becomes manual.
 # The smoke test reads the `HEALTH_URL` *variable* from that same GitHub
-# environment and is skipped when it isn't set.
+# environment and is skipped when it isn't set. It requires a real 200; for a
+# Worker behind Cloudflare Access, pass a service token via the
+# access-client-id / access-client-secret secrets so the check can get one.
 #
 # Secrets are passed explicitly rather than via `secrets: inherit` (zizmor
 # flags inherit, with reason), which means they resolve in the caller's
@@ -50,6 +52,15 @@ on:
       cloudflare-account-id:
         description: Cloudflare account id.
         required: true
+      access-client-id:
+        description: >
+          Cloudflare Access service-token client id — set when HEALTH_URL sits
+          behind Access, so the smoke test can authenticate. Leave unset for a
+          publicly reachable Worker.
+        required: false
+      access-client-secret:
+        description: The matching Access service-token client secret.
+        required: false
 
 permissions:
   contents: read
@@ -101,6 +112,28 @@ jobs:
         if: ${{ vars.HEALTH_URL != '' }}
         env:
           HEALTH_URL: ${{ vars.HEALTH_URL }}
+          ACCESS_CLIENT_ID: ${{ secrets.access-client-id }}
+          ACCESS_CLIENT_SECRET: ${{ secrets.access-client-secret }}
         run: |
+          set -euo pipefail
           sleep 5 # let the new version propagate
-          curl -fsS --retry 3 --retry-delay 5 "$HEALTH_URL"
+          auth=()
+          if [ -n "$ACCESS_CLIENT_ID" ]; then
+            auth=(-H "CF-Access-Client-Id: $ACCESS_CLIENT_ID"
+                  -H "CF-Access-Client-Secret: $ACCESS_CLIENT_SECRET")
+          fi
+          # Require an actual 200. Behind Cloudflare Access an anonymous
+          # request gets a 302 to the login page, which `curl -f` counts as
+          # success — the Worker itself would never be exercised.
+          for attempt in 1 2 3 4; do
+            status="$(curl -sS -o /dev/null -w '%{http_code}' \
+              ${auth[@]+"${auth[@]}"} "$HEALTH_URL" || echo 000)"
+            if [ "$status" = "200" ]; then
+              echo "smoke test passed: $HEALTH_URL -> 200"
+              exit 0
+            fi
+            echo "attempt $attempt: HTTP $status"
+            sleep 5
+          done
+          echo "::error::smoke test failed: $HEALTH_URL answered HTTP $status, expected 200. If this Worker is behind Cloudflare Access, set the access-client-id/access-client-secret secrets to a service token allowed by a Service Auth policy on the Access app."
+          exit 1
