@@ -169,6 +169,12 @@ to the simulated database before every run — so tests exercise the *actual
 migrations*, not a hand-maintained copy of the schema, and a migration that
 breaks the schema fails CI before it reaches a real database.
 
+Tests are split into two vitest projects: `unit` (plain Node, for
+pure-function modules — keep those free of runtime `cloudflare:*` imports;
+type-only imports are erased and fine) and `worker` (inside workerd, real
+bindings via `cloudflare:test`). Only `test/worker.test.ts` pays the workerd
+startup cost; everything else runs at plain-Node speed.
+
 ## Turning off `typos`
 
 Answer no to `use_typos` and the hook is left out of the generated

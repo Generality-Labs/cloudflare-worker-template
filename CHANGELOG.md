@@ -16,6 +16,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The single `cors.json` is now per-environment (`cors.dev.json`,
   `cors.staging.json`, `cors.production.json`) so dev origins like localhost
   can never be applied to the production bucket.
+- `vitest.config.ts` now defines two projects: `unit` (plain Node, for
+  pure-function modules with no runtime `cloudflare:*` imports) and `worker`
+  (workerd via the vitest workers pool, `test/worker.test.ts` only) — unit
+  tests no longer pay the workerd startup cost.
 
 ### Added
 
