@@ -47,7 +47,10 @@ After scaffolding, the copier message lists the resource-creation commands
 
 Deployed targets are named wrangler environments; the top level of
 `wrangler.toml` is what `wrangler dev` and the test pool read, pointing at
-`-dev` resources that are simulated locally. Two wrangler gotchas the scaffold
+`-dev` resources that are simulated locally. The top-level Worker *name* is
+suffixed `-dev` too, so a bare `wrangler deploy` (without `--env`) can never
+overwrite the deployed production Worker — it would create a separate
+`<name>-dev` Worker instead. Two wrangler gotchas the scaffold
 encodes, because everyone hits them once:
 
 1. **Named environments do not inherit bindings.** `[[d1_databases]]`,

@@ -14,7 +14,9 @@
 #      A cron that must not run twice (sends email, hits a paid API, ...)
 #      should be declared only under [env.production.triggers].
 
-name = "{{ project_name }}"
+# Named "-dev" so a bare `wrangler deploy` (no --env) can never target the
+# deployed production Worker, whose name lives under [env.production].
+name = "{{ project_name }}-dev"
 main = "src/index.ts"
 compatibility_date = "2026-07-01"
 

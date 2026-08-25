@@ -77,6 +77,13 @@ jobs:
           grep -q 'migrations-script: migrations:prod' /tmp/out-full/.github/workflows/deploy.yml
           ! grep -q 'migrations-script' /tmp/out-min/.github/workflows/deploy.yml
 
+          # The local-dev top level must never share the production Worker's
+          # name — a bare `wrangler deploy` (no --env) would clobber it.
+          grep -q '^name = "sample-min-dev"$' /tmp/out-min/wrangler.toml
+          grep -q '^name = "sample-full-dev"$' /tmp/out-full/wrangler.toml
+          grep -q '^name = "sample-min"$' /tmp/out-min/wrangler.toml
+          grep -q '^name = "sample-full"$' /tmp/out-full/wrangler.toml
+
           # use_typos defaults on, and answering no drops the hook
           uvx copier copy --trust --defaults --vcs-ref=HEAD \
             --data project_name="sample-no-typos" \
