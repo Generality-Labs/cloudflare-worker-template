@@ -3,7 +3,9 @@ name: Deploy
 {% if use_staging %}
 # Every push to main deploys staging, then production. Add required reviewers
 # to the `production` GitHub environment (repo settings) to make the
-# staging -> production hand-off a manual approval gate. Each job smoke-tests
+# staging -> production hand-off a manual approval gate — note this needs
+# GitHub Team+ (or a public repo); on the Free plan for private repos the
+# environment exists but reviewers can't be required. Each job smoke-tests
 # the Worker afterwards when a HEALTH_URL variable is set on its GitHub
 # environment.
 {% else %}
@@ -46,8 +48,32 @@ jobs:
       access-client-id: ${{ '{{' }} secrets.ACCESS_CLIENT_ID {{ '}}' }}
       access-client-secret: ${{ '{{' }} secrets.ACCESS_CLIENT_SECRET {{ '}}' }}
 
+  # Optional: a real end-to-end gate between staging and production — a job
+  # that exercises the DEPLOYED staging Worker and blocks production when it
+  # fails (see README "Gating production on staging"). To enable: uncomment,
+  # write scripts/e2e-check.sh, and change production's `needs:` to e2e-gate.
+  # Uniquify anything the check creates with RUN_TAG — a retried run must not
+  # collide with (or be silently deduplicated against) a previous attempt.
+  #
+  # e2e-gate:
+  #   name: E2E gate (staging)
+  #   needs: staging
+  #   runs-on: ubuntu-latest
+  #   environment: staging  # so it can read staging-environment secrets
+  #   timeout-minutes: 10
+  #   permissions:
+  #     contents: read
+  #   steps:
+  #     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+  #       with:
+  #         persist-credentials: false
+  #     - name: Exercise the deployed staging Worker
+  #       env:
+  #         RUN_TAG: ${{ '{{' }} github.run_id {{ '}}' }}-${{ '{{' }} github.run_attempt {{ '}}' }}
+  #       run: bash scripts/e2e-check.sh
+
   production:
-    needs: staging
+    needs: staging # switch to `needs: e2e-gate` when the gate is enabled
     uses: {{ github_owner }}/cloudflare-worker-template/.github/workflows/worker-deploy.yml@v1
     with:
       environment: production

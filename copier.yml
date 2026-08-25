@@ -29,6 +29,20 @@ _message_after_copy: |
   {% if use_staging %}
     npx wrangler r2 bucket create {{ project_name }}-staging
   {% endif %}
+
+  Apply each deployed bucket's own CORS rules (edit the origins first —
+  production must never allow localhost):
+    npx wrangler r2 bucket cors set {{ project_name }} --file cors.production.json
+  {% if use_staging %}
+    npx wrangler r2 bucket cors set {{ project_name }}-staging --file cors.staging.json
+  {% endif %}
+  {% endif %}
+  {% if use_kv %}
+  Create the deployed KV namespace(s) and paste each returned id into wrangler.toml:
+    npx wrangler kv namespace create {{ project_name }}
+  {% if use_staging %}
+    npx wrangler kv namespace create {{ project_name }}-staging
+  {% endif %}
   {% endif %}
 
   Deploys run from CI: add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as
@@ -64,9 +78,19 @@ use_d1:
 
 use_r2:
   type: bool
-  # Scaffolds per-environment [[r2_buckets]] bindings and a cors.json to apply
-  # to the bucket (R2 CORS lives on the bucket, not in wrangler.toml).
+  # Scaffolds per-environment [[r2_buckets]] bindings and per-environment
+  # cors.<env>.json files to apply to each bucket (R2 CORS lives on the
+  # bucket, not in wrangler.toml; a shared file would leak dev origins like
+  # localhost into production).
   help: Does this Worker use an R2 bucket?
+  default: false
+
+use_kv:
+  type: bool
+  # Scaffolds per-environment [[kv_namespaces]] bindings. Deployed namespaces
+  # are created with `wrangler kv namespace create` and their returned ids
+  # pasted into wrangler.toml; the top-level (local dev) binding is simulated.
+  help: Does this Worker use a KV namespace?
   default: false
 
 use_cron:
@@ -76,6 +100,15 @@ use_cron:
   # scaffold declares them in staging too, so delete that block if the job
   # must not run twice (sends email, hits a paid API, ...).
   help: Does this Worker run on a cron schedule?
+  default: false
+
+use_playwright:
+  type: bool
+  # Scaffolds a Playwright setup that launches `wrangler dev` as its web
+  # server and exercises the Worker over real HTTP. Local-only by design
+  # (npm run test:e2e; browsers install once with `npx playwright install
+  # chromium`) — CI runs vitest, not Playwright.
+  help: Add a Playwright e2e setup (drives the Worker via wrangler dev)?
   default: false
 
 node_version:

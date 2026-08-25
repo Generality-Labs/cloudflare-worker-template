@@ -6,8 +6,56 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- `npm run typecheck` now regenerates binding types from wrangler.toml
+  (`wrangler types --include-runtime=false`) before `tsc --noEmit`; the
+  generated `worker-configuration.d.ts` is gitignored and the hand-maintained
+  `Cloudflare.Env` declaration block is gone (declare only secrets by hand —
+  the generator can't see those).
+- The single `cors.json` is now per-environment (`cors.dev.json`,
+  `cors.staging.json`, `cors.production.json`) so dev origins like localhost
+  can never be applied to the production bucket.
+- `vitest.config.ts` now defines two projects: `unit` (plain Node, for
+  pure-function modules with no runtime `cloudflare:*` imports) and `worker`
+  (workerd via the vitest workers pool, `test/worker.test.ts` only) — unit
+  tests no longer pay the workerd startup cost.
+
 ### Added
 
+- `use_kv` option: per-environment `[[kv_namespaces]]` bindings (placeholder
+  id at the local-dev top level, `wrangler kv namespace create` instructions
+  for staging/production) and a KV round-trip smoke test.
+- README sections for the operational gotchas paid for in logfile-upload
+  incidents (wrangler r2 local-vs-remote default, queue/DLQ triage, Workflow
+  instance-id and createBatch quirks, container deploy-churn lessons,
+  structured-log convention) and for the two-Workers-in-one-repo conventions
+  (`wrangler.<name>.toml`, per-config secrets, deploy ordering).
+- The scaffolded `deploy.yml` (staging variant) now carries a commented-out
+  `e2e-gate` job — a real end-to-end check against the deployed staging
+  Worker between the staging and production deploys — plus a README section
+  on writing the gate script (RUN_TAG uniquification, poll-with-deadline,
+  runbook failure messages).
+- `scripts/setup-resources.sh`: an idempotent skeleton for creating the
+  resources wrangler.toml can only reference (queues, DLQs, R2 event
+  notifications, lifecycle rules, CORS), with the wrangler already-exists
+  quirks and the non-idempotent `r2 bucket notification create` footgun
+  encoded.
+- `use_playwright` option: a Playwright e2e setup that launches `wrangler
+  dev` as its web server (readiness-probed on `/health`) and exercises the
+  Worker over real HTTP via `npm run test:e2e`. Local-only by design — CI
+  keeps running vitest.
+- `scripts/set-public-access.sh <on|off|status>`: toggle whether the
+  production Worker is publicly reachable by attaching/detaching a named
+  Bypass policy on its Cloudflare Access app, with typed confirmation for the
+  public direction and outside-in verification; plus a README section on the
+  staging-behind-Access convention and smoke-testing through Access with a
+  service token.
+- Secrets workflow: a committed `.dev.vars.example` declares the Worker's
+  secret names (with an `# optional` marker for ones an environment may
+  lack); gitignored `.dev.vars.<env>` copies hold the values; and
+  `scripts/put-secrets.sh` (npm run `secrets` / `secrets:staging`) validates
+  the full set before pushing anything via `wrangler secret put`.
 - Initial template: TypeScript Worker scaffold with named wrangler
   environments (local-dev top level, `[env.production]`, optional
   `[env.staging]`), optional D1/R2/cron support, vitest-pool-workers tests

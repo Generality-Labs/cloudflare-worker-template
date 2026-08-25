@@ -11,9 +11,16 @@
   {% endif %}
   "scripts": {
     "dev": "wrangler dev",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "wrangler types --include-runtime=false && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    {% if use_playwright %}
+    "test:e2e": "playwright test",
+    {% endif %}
+    {% if use_staging %}
+    "secrets:staging": "bash scripts/put-secrets.sh staging",
+    {% endif %}
+    "secrets": "bash scripts/put-secrets.sh production",
     {% if use_d1 %}
     "migrations:local": "wrangler d1 migrations apply {{ project_name }}-dev --local",
     {% if use_staging %}
@@ -30,6 +37,9 @@
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.19.0",
     "@cloudflare/workers-types": "^5.20260722.0",
+    {% if use_playwright %}
+    "@playwright/test": "^1.62.1",
+    {% endif %}
     "typescript": "^5.9.0",
     "vitest": "^4.1.0",
     "wrangler": "^4.0.0"

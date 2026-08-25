@@ -3,6 +3,12 @@ import path from "node:path";
 import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
 import { defineConfig } from "vitest/config";
 
+// Two projects, so only tests that need the Workers runtime pay for it:
+//   unit    plain Node, for pure-function modules. Modules tested here must
+//           have no runtime import of cloudflare:* / @cloudflare/* packages
+//           (type-only imports are fine — TypeScript erases them).
+//   worker  runs inside workerd via @cloudflare/vitest-pool-workers, with
+//           real (locally simulated) bindings via `cloudflare:test`.
 export default defineConfig(async () => {
   // Read ./migrations at config time and hand them to the Workers runtime as
   // a binding; test/apply-migrations.ts applies them before tests run. Tests
@@ -10,16 +16,33 @@ export default defineConfig(async () => {
   const migrations = await readD1Migrations(path.join(__dirname, "migrations"));
 
   return {
-    plugins: [
-      cloudflareTest({
-        wrangler: { configPath: "./wrangler.toml" },
-        miniflare: {
-          bindings: { TEST_MIGRATIONS: migrations },
-        },
-      }),
-    ],
     test: {
-      setupFiles: ["./test/apply-migrations.ts"],
+      projects: [
+        {
+          test: {
+            name: "unit",
+            include: ["test/**/*.test.ts"],
+            exclude: ["test/worker.test.ts"],
+          },
+        },
+        {
+          plugins: [
+            cloudflareTest({
+              wrangler: { configPath: "./wrangler.toml" },
+              miniflare: {
+                bindings: { TEST_MIGRATIONS: migrations },
+              },
+            }),
+          ],
+          test: {
+            name: "worker",
+            include: ["test/worker.test.ts"],
+            setupFiles: ["./test/apply-migrations.ts"],
+          },
+        },
+      ],
+      // A fresh scaffold has no unit tests yet; don't fail the empty project.
+      passWithNoTests: true,
     },
   };
 });
@@ -27,7 +50,32 @@ export default defineConfig(async () => {
 import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
 import { defineConfig } from "vitest/config";
 
+// Two projects, so only tests that need the Workers runtime pay for it:
+//   unit    plain Node, for pure-function modules. Modules tested here must
+//           have no runtime import of cloudflare:* / @cloudflare/* packages
+//           (type-only imports are fine — TypeScript erases them).
+//   worker  runs inside workerd via @cloudflare/vitest-pool-workers, with
+//           real (locally simulated) bindings via `cloudflare:test`.
 export default defineConfig({
-  plugins: [cloudflareTest({ wrangler: { configPath: "./wrangler.toml" } })],
+  test: {
+    projects: [
+      {
+        test: {
+          name: "unit",
+          include: ["test/**/*.test.ts"],
+          exclude: ["test/worker.test.ts"],
+        },
+      },
+      {
+        plugins: [cloudflareTest({ wrangler: { configPath: "./wrangler.toml" } })],
+        test: {
+          name: "worker",
+          include: ["test/worker.test.ts"],
+        },
+      },
+    ],
+    // A fresh scaffold has no unit tests yet; don't fail the empty project.
+    passWithNoTests: true,
+  },
 });
 {% endif %}

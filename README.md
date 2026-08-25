@@ -31,9 +31,9 @@ uvx copier copy gh:Generality-Labs/cloudflare-worker-template my-new-worker
 ```
 
 You'll be asked for the name and description, whether to add a staging
-environment, which resources the Worker uses (D1, R2, cron triggers), the Node
-version, and whether to run the typos spell-checker and the automatic
-template-update PRs.
+environment, which resources the Worker uses (D1, R2, KV, cron triggers), the
+Node version, and whether to add a Playwright e2e setup, run the typos
+spell-checker, and open the automatic template-update PRs.
 
 After scaffolding, the copier message lists the resource-creation commands
 (`wrangler d1 create` / `wrangler r2 bucket create`) whose ids/names go into
@@ -64,7 +64,9 @@ encodes, because everyone hits them once:
 With `use_staging`, every push to main deploys staging first and production
 second, each as a GitHub environment. Add required reviewers to the
 `production` GitHub environment in repo settings to turn that hand-off into a
-manual approval gate. Each deploy job smoke-tests the Worker afterwards when a
+manual approval gate — note this needs GitHub Team+ (or a public repo); on
+the Free plan for private repos the environment exists but reviewers can't be
+required. Each deploy job smoke-tests the Worker afterwards when a
 `HEALTH_URL` variable is set on the GitHub environment.
 
 One constraint worth knowing: the deploy pipeline passes the Cloudflare
@@ -72,6 +74,55 @@ secrets to the reusable workflow explicitly (zizmor flags `secrets: inherit`,
 and with reason). That means the secrets live at the *repository* level. If
 you need different tokens per environment, switch the scaffolded `deploy.yml`
 to `secrets: inherit` and silence the finding — a deliberate, per-repo choice.
+
+## Secrets
+
+Secrets never live in `wrangler.toml` (that's for non-secret `[vars]`) or in
+git. The scaffold's workflow:
+
+1. Declare each secret as a `KEY=` line in the committed `.dev.vars.example`
+   (suffix `# optional` for ones an environment may legitimately lack).
+1. `cp .dev.vars.example .dev.vars` and fill in dev values — `wrangler dev`
+   and vitest read it directly.
+1. For deploys: `cp .dev.vars.example .dev.vars.production` (and
+   `.dev.vars.staging`), fill in that environment's values, then
+   `npm run secrets` / `npm run secrets:staging`. The script validates every
+   required value before pushing anything, so a typo can't leave the Worker
+   half-updated.
+
+All the copies are gitignored; only `.dev.vars.example` is committed. Note
+that `wrangler secret put` creates a new Worker version — long-running
+Workflow instances keep the version (and secrets) they started with.
+
+## Cloudflare Access in front of deployed Workers
+
+The org convention: every deployed Worker hostname sits behind a Cloudflare
+Access one-click app from day one — staging *stays* behind it permanently, so
+half-baked deploys can never leak; production stays behind it until launch.
+Turn it on per Worker in the dashboard (Workers & Pages -> the Worker ->
+Settings -> Domains & Routes -> workers.dev -> Enable Cloudflare Access).
+
+**Smoke tests through Access.** The deploy smoke test requires a real 200, so
+an Access-protected `HEALTH_URL` needs a service token: in Zero Trust ->
+Access -> Service Auth, create a token; on each protected Access app add a
+policy with decision **Service Auth** that includes that token; then set the
+token's id/secret as the `ACCESS_CLIENT_ID` / `ACCESS_CLIENT_SECRET`
+*repository* secrets (they resolve in the caller's context, like the
+Cloudflare ones).
+
+**Making production public at launch** — `scripts/set-public-access.sh
+<on|off|status>` attaches/detaches a named Bypass policy on the production
+app without touching the app's own policies, so `off` restores exactly the
+prior state; it verifies the live behaviour from outside afterwards, and the
+`on` direction asks for typed confirmation (or `--yes` non-interactively).
+
+Two hard-won API-token notes (they apply to the script, which is why it reads
+`CLOUDFLARE_API_TOKEN` from the environment rather than reusing CI's):
+editing Access needs an *account-scoped* token with BOTH "Access: Apps" and
+"Access: Policies" write (Policies-only looks fine right up until `POST apps`
+fails with `[1010] auth.forbidden`); and keep Access-editing rights out of
+the CI deploy token — mint short-TTL tokens for the occasional toggle
+instead. Also note Access does not log requests a Bypass policy admits.
 
 ## The reusable workflows
 
@@ -112,6 +163,51 @@ npm is assumed throughout (both scripts and lockfile) — it's what the existing
 Worker repos use, and workers projects have no build step for a faster
 package manager to speed up.
 
+## Gating production on staging
+
+Two complementary gates for the staging -> production hand-off:
+
+- **Human approval** — required reviewers on the `production` GitHub
+  environment. Needs GitHub Team+ or a public repo.
+- **Automated e2e gate** — the scaffolded `deploy.yml` carries a commented
+  `e2e-gate` job that runs between the staging and production deploys, inside
+  the `staging` GitHub environment (so it can read staging secrets), and
+  calls a repo-owned `scripts/e2e-check.sh`. Write that script so it runs
+  identically in CI and by hand: every knob an env var with a default, a
+  poll-with-deadline rather than a fixed sleep, a failure message that names
+  the exact tail/queue/log commands to triage with, and everything it creates
+  tagged with `RUN_TAG` (CI passes `run_id-run_attempt`) so a retry can't
+  collide with — or be silently deduplicated against — a previous attempt.
+
+Resources that wrangler.toml can't declare (queues, DLQs, R2 event
+notifications, lifecycle rules, CORS) get created by the scaffolded
+`scripts/setup-resources.sh <env>` — an idempotent, re-runnable skeleton with
+the wrangler footguns already encoded (a duplicate queue reports "already
+taken"; `r2 bucket notification create` silently double-delivers if repeated).
+
+One more convention: scope one Cloudflare API token per project (name the
+repo secret accordingly, e.g. `CLOUDFLARE_API_TOKEN_<PROJECT>`, and adjust
+`deploy.yml`) rather than sharing one broad token across repos — a leaked or
+over-scoped token then only reaches one project's resources.
+
+## Two Workers in one repo
+
+A second Worker (a scanner, a queue consumer) lives as a second config file:
+
+- `wrangler.<name>.toml`, deployed with
+  `wrangler deploy --config wrangler.<name>.toml --env <env>`.
+- npm scripts follow `<verb>:<worker>[:<env>]`, production unsuffixed:
+  `deploy:scanner`, `deploy:scanner:staging`, `tail:scanner`.
+- **Nothing is shared across config files** — bindings, `[vars]`, and
+  `[observability]` must be repeated in each one, per environment.
+- **Secrets are per-Worker:** push to every config
+  (`wrangler secret put --config wrangler.<name>.toml --env <env>`), or the
+  second Worker fails at runtime while the first looks healthy.
+- **Deploy order matters within an environment:** deploy the dependency
+  Worker first (one reusable-workflow call per Worker per environment, with
+  `needs:` chaining), so a contract change never leaves the main Worker
+  calling an older peer.
+
 ## Testing against real bindings
 
 The test pool runs the Worker in workerd with simulated local resources. With
@@ -119,6 +215,18 @@ The test pool runs the Worker in workerd with simulated local resources. With
 to the simulated database before every run — so tests exercise the *actual
 migrations*, not a hand-maintained copy of the schema, and a migration that
 breaks the schema fails CI before it reaches a real database.
+
+Tests are split into two vitest projects: `unit` (plain Node, for
+pure-function modules — keep those free of runtime `cloudflare:*` imports;
+type-only imports are erased and fine) and `worker` (inside workerd, real
+bindings via `cloudflare:test`). Only `test/worker.test.ts` pays the workerd
+startup cost; everything else runs at plain-Node speed.
+
+With `use_playwright`, `npm run test:e2e` additionally drives the Worker over
+real HTTP: Playwright launches `wrangler dev` as its web server (probing
+`/health` for readiness — inject test secrets with `--var` flags on that
+command) and runs the specs in `e2e/`. Local-only by design; install browsers
+once with `npx playwright install chromium`.
 
 ## Turning off `typos`
 
@@ -156,6 +264,48 @@ tag-pinned refs from `Generality-Labs/*` while still requiring commit-SHA pins
 for third-party actions, and the generated `.github/dependabot.yml` tells
 Dependabot to leave `Generality-Labs/*` alone so it doesn't rewrite the moving
 tag to a fixed version on every release.
+
+## Operational gotchas
+
+Paid for in incidents on real projects (mostly logfile-upload); read before
+debugging Cloudflare behaviour from scratch.
+
+- **`wrangler r2 object put/get` talks to the LOCAL simulated store by
+  default** (`.wrangler/state/`), not the real bucket — always pass
+  `--remote`. A local put "verified" by a local get while the real bucket
+  stays empty has burned two debugging sessions; `wrangler r2 bucket info`
+  (always remote) showing `object_count: 0` is the fast tell.
+- **Multiple Cloudflare accounts?** `export CLOUDFLARE_ACCOUNT_ID=...` or
+  wrangler may silently target the wrong (empty) one.
+- **Never pipe `wrangler deploy` through `tail`/`head`** — it masks the exit
+  code and has manufactured a false "deploy succeeded".
+- **R2 S3-API credentials:** the Access Key ID is the API token's `id`; the
+  Secret is the SHA-256 of the token value, shown once. Wrong key id →
+  `Unauthorized`; right id + wrong secret → `SignatureDoesNotMatch`. An
+  account id pasted as an access key looks plausible (also 32 hex chars).
+- **Queues:** consumers should always declare `dead_letter_queue` — exhausted
+  retries otherwise DELETE the message. Create the DLQ before the consumer
+  deploys. Wrangler cannot print message bodies; triage via the dashboard
+  Queues view or the REST pull API. Log derived ids next to errors so triage
+  doesn't start from a bare string.
+- **Workflows:** instance ids must start with an alphanumeric (a derived
+  leading `-` is rejected with `instance.invalid_id`), and `createBatch`
+  silently SKIPS duplicate ids within the retention window — the types doc
+  comment claiming it throws is wrong. Running instances stay pinned to the
+  Worker version (and secrets) they started on.
+- **Containers:** the default Workflow step-retry budget (~100s) is smaller
+  than a real container cold start — size retries to outlast it, use constant
+  backoff, and pin the arithmetic with a test. The entrypoint is PID 1:
+  `trap` TERM/INT and run long startup work backgrounded behind `wait`, or
+  the runtime waits out a 15-minute grace while the zombie squats a
+  `max_instances` slot. Give `max_instances` headroom — every deploy briefly
+  doubles instances while old versions drain. Container stderr is NOT in
+  `wrangler tail`; it's in the dashboard observability logs
+  (`type: cf-container`).
+- **Structured logs:** `console.log("event_name", JSON.stringify({...}))`
+  with snake_case event names, one per phase — retrofitting this after an
+  opaque incident is the expensive way to learn it. Log `err.stack`
+  server-side and return a generic message, so internals never leak.
 
 ## Prior art
 
