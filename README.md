@@ -175,6 +175,12 @@ type-only imports are erased and fine) and `worker` (inside workerd, real
 bindings via `cloudflare:test`). Only `test/worker.test.ts` pays the workerd
 startup cost; everything else runs at plain-Node speed.
 
+With `use_playwright`, `npm run test:e2e` additionally drives the Worker over
+real HTTP: Playwright launches `wrangler dev` as its web server (probing
+`/health` for readiness — inject test secrets with `--var` flags on that
+command) and runs the specs in `e2e/`. Local-only by design; install browsers
+once with `npx playwright install chromium`.
+
 ## Turning off `typos`
 
 Answer no to `use_typos` and the hook is left out of the generated

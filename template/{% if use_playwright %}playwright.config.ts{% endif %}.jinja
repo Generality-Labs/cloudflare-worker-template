@@ -1,0 +1,23 @@
+import { defineConfig, devices } from "@playwright/test";
+
+// e2e tests drive the real Worker (via `wrangler dev`) over HTTP. Inject
+// known test values for any secrets the Worker needs as --var flags on the
+// webServer command; /health doubles as the readiness probe.
+export default defineConfig({
+  testDir: "./e2e",
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 1 : 0,
+  reporter: "list",
+  use: {
+    baseURL: "http://127.0.0.1:8787",
+    trace: "on-first-retry",
+  },
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  webServer: {
+    command: "wrangler dev --port 8787",
+    url: "http://127.0.0.1:8787/health",
+    reuseExistingServer: !process.env.CI,
+    timeout: 30_000,
+  },
+});

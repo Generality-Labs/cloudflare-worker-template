@@ -50,6 +50,7 @@ jobs:
             --data project_description="A full sample worker" \
             --data use_staging=true --data use_d1=true \
             --data use_r2=true --data use_cron=true \
+            --data use_playwright=true \
             . /tmp/out-full
 
           for out in /tmp/out-min /tmp/out-full; do
@@ -108,6 +109,15 @@ jobs:
           # Access toggle script: rendered, executable, parseable.
           test -x /tmp/out-min/scripts/set-public-access.sh
           bash -n /tmp/out-min/scripts/set-public-access.sh
+
+          # Playwright is opt-in: full has it, min doesn't. CI never runs the
+          # e2e suite (local-only by design); npm install still proves the
+          # @playwright/test version range resolves.
+          test -f /tmp/out-full/playwright.config.ts
+          test -f /tmp/out-full/e2e/health.spec.ts
+          test ! -e /tmp/out-min/playwright.config.ts
+          grep -q '"test:e2e"' /tmp/out-full/package.json
+          refute grep -q '"test:e2e"' /tmp/out-min/package.json
 
           # use_typos defaults on, and answering no drops the hook
           uvx copier copy --trust --defaults --vcs-ref=HEAD \

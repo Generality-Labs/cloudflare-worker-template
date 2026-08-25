@@ -23,6 +23,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `use_playwright` option: a Playwright e2e setup that launches `wrangler
+  dev` as its web server (readiness-probed on `/health`) and exercises the
+  Worker over real HTTP via `npm run test:e2e`. Local-only by design — CI
+  keeps running vitest.
 - `scripts/set-public-access.sh <on|off|status>`: toggle whether the
   production Worker is publicly reachable by attaching/detaching a named
   Bypass policy on its Cloudflare Access app, with typed confirmation for the

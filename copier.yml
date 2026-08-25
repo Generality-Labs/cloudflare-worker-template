@@ -87,6 +87,15 @@ use_cron:
   help: Does this Worker run on a cron schedule?
   default: false
 
+use_playwright:
+  type: bool
+  # Scaffolds a Playwright setup that launches `wrangler dev` as its web
+  # server and exercises the Worker over real HTTP. Local-only by design
+  # (npm run test:e2e; browsers install once with `npx playwright install
+  # chromium`) — CI runs vitest, not Playwright.
+  help: Add a Playwright e2e setup (drives the Worker via wrangler dev)?
+  default: false
+
 node_version:
   type: str
   help: Node version for CI and deploys (the Worker itself runs on workerd)
