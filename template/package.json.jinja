@@ -14,6 +14,10 @@
     "typecheck": "wrangler types --include-runtime=false && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    {% if use_staging %}
+    "secrets:staging": "bash scripts/put-secrets.sh staging",
+    {% endif %}
+    "secrets": "bash scripts/put-secrets.sh production",
     {% if use_d1 %}
     "migrations:local": "wrangler d1 migrations apply {{ project_name }}-dev --local",
     {% if use_staging %}

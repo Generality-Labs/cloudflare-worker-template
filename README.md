@@ -73,6 +73,25 @@ and with reason). That means the secrets live at the *repository* level. If
 you need different tokens per environment, switch the scaffolded `deploy.yml`
 to `secrets: inherit` and silence the finding — a deliberate, per-repo choice.
 
+## Secrets
+
+Secrets never live in `wrangler.toml` (that's for non-secret `[vars]`) or in
+git. The scaffold's workflow:
+
+1. Declare each secret as a `KEY=` line in the committed `.dev.vars.example`
+   (suffix `# optional` for ones an environment may legitimately lack).
+1. `cp .dev.vars.example .dev.vars` and fill in dev values — `wrangler dev`
+   and vitest read it directly.
+1. For deploys: `cp .dev.vars.example .dev.vars.production` (and
+   `.dev.vars.staging`), fill in that environment's values, then
+   `npm run secrets` / `npm run secrets:staging`. The script validates every
+   required value before pushing anything, so a typo can't leave the Worker
+   half-updated.
+
+All the copies are gitignored; only `.dev.vars.example` is committed. Note
+that `wrangler secret put` creates a new Worker version — long-running
+Workflow instances keep the version (and secrets) they started with.
+
 ## The reusable workflows
 
 Generated projects call these rather than duplicating CI. To bump CI for every

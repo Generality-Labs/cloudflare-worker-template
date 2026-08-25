@@ -19,6 +19,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Secrets workflow: a committed `.dev.vars.example` declares the Worker's
+  secret names (with an `# optional` marker for ones an environment may
+  lack); gitignored `.dev.vars.<env>` copies hold the values; and
+  `scripts/put-secrets.sh` (npm run `secrets` / `secrets:staging`) validates
+  the full set before pushing anything via `wrangler secret put`.
 - Initial template: TypeScript Worker scaffold with named wrangler
   environments (local-dev top level, `[env.production]`, optional
   `[env.staging]`), optional D1/R2/cron support, vitest-pool-workers tests
