@@ -23,6 +23,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- The scaffolded `deploy.yml` (staging variant) now carries a commented-out
+  `e2e-gate` job — a real end-to-end check against the deployed staging
+  Worker between the staging and production deploys — plus a README section
+  on writing the gate script (RUN_TAG uniquification, poll-with-deadline,
+  runbook failure messages).
+- `scripts/setup-resources.sh`: an idempotent skeleton for creating the
+  resources wrangler.toml can only reference (queues, DLQs, R2 event
+  notifications, lifecycle rules, CORS), with the wrangler already-exists
+  quirks and the non-idempotent `r2 bucket notification create` footgun
+  encoded.
 - `use_playwright` option: a Playwright e2e setup that launches `wrangler
   dev` as its web server (readiness-probed on `/health`) and exercises the
   Worker over real HTTP via `npm run test:e2e`. Local-only by design — CI

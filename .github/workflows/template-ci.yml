@@ -119,6 +119,12 @@ jobs:
           grep -q '"test:e2e"' /tmp/out-full/package.json
           refute grep -q '"test:e2e"' /tmp/out-min/package.json
 
+          # Deploy-pipeline extras: the commented e2e gate rides with staging,
+          # and the provisioning skeleton is executable and parses.
+          grep -q 'e2e-gate:' /tmp/out-full/.github/workflows/deploy.yml
+          test -x /tmp/out-min/scripts/setup-resources.sh
+          bash -n /tmp/out-min/scripts/setup-resources.sh
+
           # use_typos defaults on, and answering no drops the hook
           uvx copier copy --trust --defaults --vcs-ref=HEAD \
             --data project_name="sample-no-typos" \
