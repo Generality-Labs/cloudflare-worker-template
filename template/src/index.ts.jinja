@@ -1,20 +1,16 @@
-{% if use_d1 or use_r2 %}
-// Bindings declared in wrangler.toml, merged into the global `Cloudflare.Env`
-// that handlers and tests share. Keep in sync with wrangler.toml.
-declare global {
-  namespace Cloudflare {
-    interface Env {
-      {% if use_d1 %}
-      DB: D1Database;
-      {% endif %}
-      {% if use_r2 %}
-      BUCKET: R2Bucket;
-      {% endif %}
-    }
-  }
-}
+// Binding types are generated from wrangler.toml into worker-configuration.d.ts
+// by `npm run typecheck` (`wrangler types`) — never hand-maintain them.
+// Secrets are the exception: the generator can't see them, so declare them by
+// hand when you add one:
+//
+//   declare global {
+//     namespace Cloudflare {
+//       interface Env {
+//         MY_SECRET: string;
+//       }
+//     }
+//   }
 
-{% endif %}
 export default {
   async fetch(request: Request, _env: Cloudflare.Env, _ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);

@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- `npm run typecheck` now regenerates binding types from wrangler.toml
+  (`wrangler types --include-runtime=false`) before `tsc --noEmit`; the
+  generated `worker-configuration.d.ts` is gitignored and the hand-maintained
+  `Cloudflare.Env` declaration block is gone (declare only secrets by hand —
+  the generator can't see those).
+
 ### Added
 
 - Initial template: TypeScript Worker scaffold with named wrangler

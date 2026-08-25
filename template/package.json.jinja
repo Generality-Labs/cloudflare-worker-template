@@ -11,7 +11,7 @@
   {% endif %}
   "scripts": {
     "dev": "wrangler dev",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "wrangler types --include-runtime=false && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     {% if use_d1 %}

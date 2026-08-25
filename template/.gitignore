@@ -15,6 +15,9 @@ node_modules/
 dist/
 coverage/
 
+# Generated from wrangler.toml by `wrangler types` (npm run typecheck)
+worker-configuration.d.ts
+
 # Claude Code per-user overrides (the shared .claude/settings.json is committed)
 .claude/settings.local.json
 
