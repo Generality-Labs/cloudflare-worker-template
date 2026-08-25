@@ -64,7 +64,9 @@ encodes, because everyone hits them once:
 With `use_staging`, every push to main deploys staging first and production
 second, each as a GitHub environment. Add required reviewers to the
 `production` GitHub environment in repo settings to turn that hand-off into a
-manual approval gate. Each deploy job smoke-tests the Worker afterwards when a
+manual approval gate — note this needs GitHub Team+ (or a public repo); on
+the Free plan for private repos the environment exists but reviewers can't be
+required. Each deploy job smoke-tests the Worker afterwards when a
 `HEALTH_URL` variable is set on the GitHub environment.
 
 One constraint worth knowing: the deploy pipeline passes the Cloudflare
@@ -160,6 +162,33 @@ jobs:
 npm is assumed throughout (both scripts and lockfile) — it's what the existing
 Worker repos use, and workers projects have no build step for a faster
 package manager to speed up.
+
+## Gating production on staging
+
+Two complementary gates for the staging -> production hand-off:
+
+- **Human approval** — required reviewers on the `production` GitHub
+  environment. Needs GitHub Team+ or a public repo.
+- **Automated e2e gate** — the scaffolded `deploy.yml` carries a commented
+  `e2e-gate` job that runs between the staging and production deploys, inside
+  the `staging` GitHub environment (so it can read staging secrets), and
+  calls a repo-owned `scripts/e2e-check.sh`. Write that script so it runs
+  identically in CI and by hand: every knob an env var with a default, a
+  poll-with-deadline rather than a fixed sleep, a failure message that names
+  the exact tail/queue/log commands to triage with, and everything it creates
+  tagged with `RUN_TAG` (CI passes `run_id-run_attempt`) so a retry can't
+  collide with — or be silently deduplicated against — a previous attempt.
+
+Resources that wrangler.toml can't declare (queues, DLQs, R2 event
+notifications, lifecycle rules, CORS) get created by the scaffolded
+`scripts/setup-resources.sh <env>` — an idempotent, re-runnable skeleton with
+the wrangler footguns already encoded (a duplicate queue reports "already
+taken"; `r2 bucket notification create` silently double-delivers if repeated).
+
+One more convention: scope one Cloudflare API token per project (name the
+repo secret accordingly, e.g. `CLOUDFLARE_API_TOKEN_<PROJECT>`, and adjust
+`deploy.yml`) rather than sharing one broad token across repos — a leaked or
+over-scoped token then only reaches one project's resources.
 
 ## Testing against real bindings
 
