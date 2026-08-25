@@ -268,15 +268,22 @@ tag to a fixed version on every release.
 ## Repo settings as code
 
 GitHub keeps repository settings and rulesets in the UI/API, not in files —
-so the scaffold ships the file *and* the thing that applies it:
+so the scaffold ships the files *and* the thing that applies them:
 
+- `.github/repo-settings.json` — sent verbatim as the body of
+  `PATCH /repos/{owner}/{repo}`, so any key [that endpoint
+  accepts](https://docs.github.com/rest/repos/repos#update-a-repository) can
+  be managed here: merge methods, `has_wiki`/`has_projects`, and notably
+  `delete_branch_on_merge: true` (stacked PRs only retarget when merged base
+  branches are deleted — learned the hard way). If a key turns out to be
+  plan-gated for your repo, the whole PATCH 403s — remove the key and
+  re-run.
 - `.github/rulesets/*.json` — rulesets in the exact shape the GitHub UI
   imports/exports (Settings -> Rules -> Rulesets), so they round-trip
   through the dashboard.
-- `scripts/setup-repo.sh` — applies everything idempotently with your own
-  `gh` auth (repo admin needed): sets `delete_branch_on_merge` (stacked PRs
-  only retarget when merged base branches are deleted — learned the hard
-  way), then creates or updates-in-place each ruleset by name.
+- `scripts/setup-repo.sh` — applies both idempotently with your own `gh`
+  auth (repo admin needed): PATCHes the settings file, then creates or
+  updates-in-place each ruleset by name.
 
 The scaffolded `protect-main` ruleset: no deleting or force-pushing the
 default branch, changes arrive via PR (0 approvals required until the org

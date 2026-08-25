@@ -2,10 +2,10 @@
 # Apply this repo's GitHub settings and rulesets — settings-as-code for the
 # things GitHub keeps in the UI/API rather than in checked-in files.
 #
-#   1. Repo settings (PATCH /repos/{owner}/{repo}): delete_branch_on_merge —
-#      merged head branches are deleted automatically. Stacked PRs depend on
-#      this: GitHub only retargets a stacked PR to the next base when its
-#      current base branch is deleted after merging.
+#   1. .github/repo-settings.json — sent verbatim as the body of
+#      PATCH /repos/{owner}/{repo}, so any key that endpoint accepts can be
+#      set there (merge methods, delete_branch_on_merge, has_wiki, ...).
+#      Full key list: https://docs.github.com/rest/repos/repos#update-a-repository
 #   2. Every ruleset JSON in .github/rulesets/: created if absent, updated in
 #      place when a ruleset with the same name already exists. The JSON is
 #      the same shape the GitHub UI imports/exports (Settings -> Rules).
@@ -32,8 +32,13 @@ gh auth status > /dev/null 2>&1 || {
 repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
 echo "== GitHub settings for $repo =="
 
-echo "+ repo settings: delete_branch_on_merge=true"
-gh api -X PATCH "repos/$repo" -F delete_branch_on_merge=true > /dev/null
+SETTINGS_FILE=".github/repo-settings.json"
+if [[ -f "$SETTINGS_FILE" ]]; then
+  echo "+ repo settings from $SETTINGS_FILE"
+  gh api -X PATCH "repos/$repo" --input "$SETTINGS_FILE" > /dev/null
+else
+  echo "note: $SETTINGS_FILE not found — skipping repo settings"
+fi
 
 shopt -s nullglob
 files=(.github/rulesets/*.json)
