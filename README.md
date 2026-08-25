@@ -190,6 +190,24 @@ repo secret accordingly, e.g. `CLOUDFLARE_API_TOKEN_<PROJECT>`, and adjust
 `deploy.yml`) rather than sharing one broad token across repos — a leaked or
 over-scoped token then only reaches one project's resources.
 
+## Two Workers in one repo
+
+A second Worker (a scanner, a queue consumer) lives as a second config file:
+
+- `wrangler.<name>.toml`, deployed with
+  `wrangler deploy --config wrangler.<name>.toml --env <env>`.
+- npm scripts follow `<verb>:<worker>[:<env>]`, production unsuffixed:
+  `deploy:scanner`, `deploy:scanner:staging`, `tail:scanner`.
+- **Nothing is shared across config files** — bindings, `[vars]`, and
+  `[observability]` must be repeated in each one, per environment.
+- **Secrets are per-Worker:** push to every config
+  (`wrangler secret put --config wrangler.<name>.toml --env <env>`), or the
+  second Worker fails at runtime while the first looks healthy.
+- **Deploy order matters within an environment:** deploy the dependency
+  Worker first (one reusable-workflow call per Worker per environment, with
+  `needs:` chaining), so a contract change never leaves the main Worker
+  calling an older peer.
+
 ## Testing against real bindings
 
 The test pool runs the Worker in workerd with simulated local resources. With
@@ -246,6 +264,48 @@ tag-pinned refs from `Generality-Labs/*` while still requiring commit-SHA pins
 for third-party actions, and the generated `.github/dependabot.yml` tells
 Dependabot to leave `Generality-Labs/*` alone so it doesn't rewrite the moving
 tag to a fixed version on every release.
+
+## Operational gotchas
+
+Paid for in incidents on real projects (mostly logfile-upload); read before
+debugging Cloudflare behaviour from scratch.
+
+- **`wrangler r2 object put/get` talks to the LOCAL simulated store by
+  default** (`.wrangler/state/`), not the real bucket — always pass
+  `--remote`. A local put "verified" by a local get while the real bucket
+  stays empty has burned two debugging sessions; `wrangler r2 bucket info`
+  (always remote) showing `object_count: 0` is the fast tell.
+- **Multiple Cloudflare accounts?** `export CLOUDFLARE_ACCOUNT_ID=...` or
+  wrangler may silently target the wrong (empty) one.
+- **Never pipe `wrangler deploy` through `tail`/`head`** — it masks the exit
+  code and has manufactured a false "deploy succeeded".
+- **R2 S3-API credentials:** the Access Key ID is the API token's `id`; the
+  Secret is the SHA-256 of the token value, shown once. Wrong key id →
+  `Unauthorized`; right id + wrong secret → `SignatureDoesNotMatch`. An
+  account id pasted as an access key looks plausible (also 32 hex chars).
+- **Queues:** consumers should always declare `dead_letter_queue` — exhausted
+  retries otherwise DELETE the message. Create the DLQ before the consumer
+  deploys. Wrangler cannot print message bodies; triage via the dashboard
+  Queues view or the REST pull API. Log derived ids next to errors so triage
+  doesn't start from a bare string.
+- **Workflows:** instance ids must start with an alphanumeric (a derived
+  leading `-` is rejected with `instance.invalid_id`), and `createBatch`
+  silently SKIPS duplicate ids within the retention window — the types doc
+  comment claiming it throws is wrong. Running instances stay pinned to the
+  Worker version (and secrets) they started on.
+- **Containers:** the default Workflow step-retry budget (~100s) is smaller
+  than a real container cold start — size retries to outlast it, use constant
+  backoff, and pin the arithmetic with a test. The entrypoint is PID 1:
+  `trap` TERM/INT and run long startup work backgrounded behind `wait`, or
+  the runtime waits out a 15-minute grace while the zombie squats a
+  `max_instances` slot. Give `max_instances` headroom — every deploy briefly
+  doubles instances while old versions drain. Container stderr is NOT in
+  `wrangler tail`; it's in the dashboard observability logs
+  (`type: cf-container`).
+- **Structured logs:** `console.log("event_name", JSON.stringify({...}))`
+  with snake_case event names, one per phase — retrofitting this after an
+  opaque incident is the expensive way to learn it. Log `err.stack`
+  server-side and return a generic message, so internals never leak.
 
 ## Prior art
 
