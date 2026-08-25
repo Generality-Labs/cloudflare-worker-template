@@ -37,6 +37,13 @@ _message_after_copy: |
     npx wrangler r2 bucket cors set {{ project_name }}-staging --file cors.staging.json
   {% endif %}
   {% endif %}
+  {% if use_kv %}
+  Create the deployed KV namespace(s) and paste each returned id into wrangler.toml:
+    npx wrangler kv namespace create {{ project_name }}
+  {% if use_staging %}
+    npx wrangler kv namespace create {{ project_name }}-staging
+  {% endif %}
+  {% endif %}
 
   Deploys run from CI: add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as
   repository secrets (see README.md).
@@ -76,6 +83,14 @@ use_r2:
   # bucket, not in wrangler.toml; a shared file would leak dev origins like
   # localhost into production).
   help: Does this Worker use an R2 bucket?
+  default: false
+
+use_kv:
+  type: bool
+  # Scaffolds per-environment [[kv_namespaces]] bindings. Deployed namespaces
+  # are created with `wrangler kv namespace create` and their returned ids
+  # pasted into wrangler.toml; the top-level (local dev) binding is simulated.
+  help: Does this Worker use a KV namespace?
   default: false
 
 use_cron:

@@ -23,6 +23,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `use_kv` option: per-environment `[[kv_namespaces]]` bindings (placeholder
+  id at the local-dev top level, `wrangler kv namespace create` instructions
+  for staging/production) and a KV round-trip smoke test.
+- README sections for the operational gotchas paid for in logfile-upload
+  incidents (wrangler r2 local-vs-remote default, queue/DLQ triage, Workflow
+  instance-id and createBatch quirks, container deploy-churn lessons,
+  structured-log convention) and for the two-Workers-in-one-repo conventions
+  (`wrangler.<name>.toml`, per-config secrets, deploy ordering).
 - The scaffolded `deploy.yml` (staging variant) now carries a commented-out
   `e2e-gate` job — a real end-to-end check against the deployed staging
   Worker between the staging and production deploys — plus a README section

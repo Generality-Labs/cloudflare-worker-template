@@ -39,3 +39,12 @@ describe("R2 binding", () => {
   });
 });
 {% endif %}
+{% if use_kv %}
+
+describe("KV binding", () => {
+  it("round-trips a value", async () => {
+    await env.KV.put("smoke-test-key", "hello");
+    expect(await env.KV.get("smoke-test-key")).toBe("hello");
+  });
+});
+{% endif %}
