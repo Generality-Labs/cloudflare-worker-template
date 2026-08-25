@@ -32,3 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   enforced anything: `!` exempts a command from errexit (SC2251), so a failing
   assert couldn't fail the job. They now go through a `refute` helper that
   exits explicitly.
+- `worker-ci.yml` no longer runs zizmor's online audits by default: they need
+  a token that can read every repo referenced in `uses:`, which the default
+  GITHUB_TOKEN cannot (this template repo is private), so every consumer's CI
+  failed. Opt back in with the new `run-online-audits` input.
