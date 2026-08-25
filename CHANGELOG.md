@@ -21,3 +21,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The scaffolded top-level (local-dev) Worker name is now `<project>-dev`, so
   a bare `wrangler deploy` without `--env` can no longer deploy over the
   production Worker.
+- `.gitignore` now un-ignores `.dev.vars.example` (the committed secrets
+  template) instead of the stale `.env.example`.

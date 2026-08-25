@@ -84,6 +84,9 @@ jobs:
           grep -q '^name = "sample-min"$' /tmp/out-min/wrangler.toml
           grep -q '^name = "sample-full"$' /tmp/out-full/wrangler.toml
 
+          # .dev.vars.example must survive the .dev.vars.* ignore.
+          grep -qx '!.dev.vars.example' /tmp/out-min/.gitignore
+
           # use_typos defaults on, and answering no drops the hook
           uvx copier copy --trust --defaults --vcs-ref=HEAD \
             --data project_name="sample-no-typos" \
