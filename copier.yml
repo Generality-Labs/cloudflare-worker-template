@@ -45,8 +45,10 @@ _message_after_copy: |
   {% endif %}
   {% endif %}
 
-  Deploys run from CI: add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as
-  repository secrets (see README.md).
+  Deploys run from CI: add CLOUDFLARE_API_TOKEN (Workers Editor + Workers
+  Routes Write on the zone) and CLOUDFLARE_ACCOUNT_ID as repository secrets.
+  Editor cannot create a Worker, so do the FIRST deploy by hand:
+    npx wrangler login && npm run deploy
 
 project_name:
   type: str

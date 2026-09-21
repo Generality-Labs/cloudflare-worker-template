@@ -64,8 +64,10 @@ Files under `public/` are served directly for matching paths; requests that matc
 
 Deploys run from CI on every push to main{% if use_staging %} — staging first, then production. Add required reviewers to the `production` GitHub environment to make that hand-off a manual approval gate{% endif %}. Two repository secrets are required:
 
-- `CLOUDFLARE_API_TOKEN` — token with Workers{% if use_d1 %} + D1{% endif %} edit permissions
+- `CLOUDFLARE_API_TOKEN` — account-owned token with Workers Editor (product scope) and Zone > Workers Routes > Write on the zone{% if use_d1 %}, plus D1 Edit for the migration step{% endif +%}
 - `CLOUDFLARE_ACCOUNT_ID` — the Cloudflare account id
+
+The first deploy of a new Worker needs Admin; run `npm run deploy` once from a logged-in shell, then CI redeploys.
 
 Set a `HEALTH_URL` variable on each GitHub environment (the Worker's `/health` endpoint) to enable the post-deploy smoke test.
 

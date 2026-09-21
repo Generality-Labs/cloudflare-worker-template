@@ -42,9 +42,21 @@ After scaffolding, the copier message lists the resource-creation commands
 (`wrangler d1 create` / `wrangler r2 bucket create`) whose ids/names go into
 `wrangler.toml`, and CI needs two repository secrets:
 
-- `CLOUDFLARE_API_TOKEN` — token with Workers (and D1, if used) edit
-  permissions
+- `CLOUDFLARE_API_TOKEN` — an [account-owned token](https://developers.cloudflare.com/fundamentals/api/get-started/account-owned-tokens/)
+  with **Workers Editor** at the Workers product scope (deploys any existing
+  Worker, including its KV/R2/D1 bindings), plus **Zone > Workers Routes >
+  Write** on each zone the Worker has routes or Custom Domains in, plus **D1
+  Edit** only if CI applies migrations. Editor cannot *create* a Worker, so
+  the very first deploy of a new Worker is done by hand (see below).
 - `CLOUDFLARE_ACCOUNT_ID` — the Cloudflare account id
+
+### First deploy
+
+`wrangler deploy` for a Worker that does not exist yet needs Workers **Admin**.
+Rather than give CI that, deploy once from a logged-in shell
+(`npx wrangler login`, then `npm run deploy`); every later push to `main` is a
+redeploy that Editor can do. The same applies the first time a new
+`[env.staging]` is added.
 
 ## How environments work
 
@@ -258,6 +270,55 @@ Answer yes to `use_template_update` (the default) and the scaffold gets a
 demand) and opens a PR when the template's *scaffolded files* have changed.
 Reusable-workflow changes need no update run: consumers pin `@v1`, so moving
 the tag propagates those immediately.
+
+## Adopt the template in an existing Worker repo
+
+`copier update` needs a `.copier-answers.yml` recording which template
+revision the project was generated from; a repo that predates the template
+has none. Establish that baseline by hand, once:
+
+1. On a branch, render the template into a scratch directory with the answers
+   the project should have, pinned to a **release tag**:
+
+   ```bash
+   uvx copier copy --trust --vcs-ref v1.1.0 \
+     --data project_name=my-worker --data project_description="..." \
+     --data use_kv=true --data use_assets=true \
+     gh:Generality-Labs/cloudflare-worker-template /tmp/render
+   ```
+
+1. Copy in everything that does not exist yet, then merge the rest by hand:
+
+   ```bash
+   rsync -a --ignore-existing /tmp/render/ ./
+   git status --short   # new files
+   diff -r /tmp/render . | grep '^diff'   # files to merge by hand
+   ```
+
+   The usual hand-merges are `.github/workflows/ci.yml`, `.gitignore`,
+   `README.md`, `package.json`, `src/index.ts`, `tsconfig.json`, and
+   `wrangler.toml`. Keep the project's code and resource ids; take the
+   template's structure (named environments with a `-dev` top level, the
+   `typecheck` script, `test/` as the test directory).
+
+1. Copy `/tmp/render/.copier-answers.yml` into the repo and set `_src_path` to
+   `gh:Generality-Labs/cloudflare-worker-template` (a local render records the
+   local path). `_commit` must be the tag you rendered.
+
+1. Prove the baseline holds: in a throwaway clone of the branch, run
+   `uvx copier update --defaults --trust --vcs-ref v1.1.0`. Expected: no
+   changes (or only the files you hand-merged, as no-op re-applications).
+   Conflict markers here mean a hand-merge diverged from the template in a way
+   copier cannot follow; fix the file until the update is clean.
+
+1. Commit the baseline as one commit, separate from reformatting (Biome and
+   mdformat will touch most files; do that in its own commit so `git blame`
+   stays useful).
+
+Template CI keeps a fixture for this path: it renders the previous release,
+customises it the way a real project does (renamed binding, extra routes and
+files), then runs `copier update` to the commit under review and fails if a
+customisation was lost or a conflict appeared.
 
 ## Versioning
 

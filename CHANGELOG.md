@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- README: how to adopt the template in an existing Worker repo (baseline
+  render, hand-merge list, `copier update` proof). Token guidance now names
+  the roles (Workers Editor, Workers Routes Write, D1 Edit) and the
+  first-deploy-by-hand rule.
 - `use_assets` question: scaffolds a `public/` directory with an `[assets]`
   block and `ASSETS` binding, a runtime test that fetches through the
   binding, and a README section.
