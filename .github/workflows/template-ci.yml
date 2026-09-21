@@ -189,6 +189,61 @@ jobs:
             echo "::endgroup::"
           done
 
+  update-preserves-customisations:
+    name: copier update keeps a customised project intact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # copier update diffs against the previous release tag
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d # v10.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Render the previous release, customise it, update to HEAD
+        run: |
+          set -euo pipefail
+          refute() { if "$@"; then echo "refute failed: $*" >&2; exit 1; fi; }
+          # Copier records whatever source path it was given, verbatim, in
+          # .copier-answers.yml. `.` resolves fine for this first `copy` (cwd
+          # is still the checkout), but `copier update` re-resolves that
+          # recorded path relative to *its own* cwd -- which is /tmp/adopted
+          # below. An absolute path here is what keeps the later `copier
+          # update` pointed at this checkout instead of at /tmp/adopted itself.
+          template_dir=$(pwd)
+          prev=$(git tag --list 'v1.*.*' --sort=-v:refname | head -n 1)
+          echo "previous release: $prev"
+          uvx copier copy --trust --defaults --vcs-ref="$prev" \
+            --data project_name=adopted --data project_description="An adopted worker" \
+            --data use_kv=true --data use_cron=true \
+            "$template_dir" /tmp/adopted
+          cd /tmp/adopted
+          git init -q && git config user.email ci@example.com && git config user.name ci
+          git add -A && git commit -qm "baseline from $prev"
+
+          # Customisations a real project makes to scaffolded files.
+          sed -i 's/binding = "KV"/binding = "MODEL_PRICES"/' wrangler.toml
+          sed -i 's|// The deploy pipeline smoke-tests this endpoint|// CUSTOM ROUTE MARKER\n    // The deploy pipeline smoke-tests this endpoint|' src/index.ts
+          mkdir -p app && echo 'export const keep = true;' > app/keep.ts
+          echo '- customised entry' >> CHANGELOG.md
+          git add -A && git commit -qm "customise"
+
+          uvx copier update --defaults --trust --vcs-ref=HEAD
+
+          # No conflict markers anywhere.
+          refute sh -c "git grep -lI -e '^<<<<<<< ' -- . | grep ."
+          # Customisations survived.
+          grep -q 'binding = "MODEL_PRICES"' wrangler.toml
+          refute grep -q 'binding = "KV"' wrangler.toml
+          grep -q 'CUSTOM ROUTE MARKER' src/index.ts
+          test -f app/keep.ts
+          grep -q 'customised entry' CHANGELOG.md
+          # The answers file now records HEAD, so the next update has a baseline.
+          grep -q '^_commit:' .copier-answers.yml
+          git status --short
+
   # The reusable workflow is `workflow_call`-only, so nothing in this repo
   # would ever execute it otherwise: a change would ship straight to every
   # consumer on the next `v1` move, untested. This calls it for real against

@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Template CI renders the previous release, customises it like a real
+  project (renamed KV binding, extra code and files), and runs `copier
+  update` to the commit under review; a lost customisation or a conflict
+  marker fails the build.
 - README: how to adopt the template in an existing Worker repo (baseline
   render, hand-merge list, `copier update` proof). Token guidance now names
   the roles (Workers Editor, Workers Routes Write, D1 Edit) and the
