@@ -213,8 +213,20 @@ jobs:
           # below. An absolute path here is what keeps the later `copier
           # update` pointed at this checkout instead of at /tmp/adopted itself.
           template_dir=$(pwd)
-          prev=$(git tag --list 'v1.*.*' --sort=-v:refname | head -n 1)
+          prev=$(git for-each-ref --count=1 --sort=-v:refname --format='%(refname:short)' 'refs/tags/v1.*.*')
+          if [ -z "$prev" ]; then
+            echo "::error::No v1.*.* tag found; this fixture needs a previous release to diff the customised project against." >&2
+            exit 1
+          fi
           echo "previous release: $prev"
+          # On the release commit itself, prev (the tag being cut) is at or
+          # ahead of HEAD, so `copier update` finds nothing to do ("Keeping
+          # template version") and every assertion below passes vacuously.
+          # Skip rather than let a green tick be mistaken for coverage.
+          if git merge-base --is-ancestor HEAD "$prev"; then
+            echo "previous release is at or ahead of HEAD; fixture is vacuous on a release commit, skipping"
+            exit 0
+          fi
           uvx copier copy --trust --defaults --vcs-ref="$prev" \
             --data project_name=adopted --data project_description="An adopted worker" \
             --data use_kv=true --data use_cron=true \
@@ -223,9 +235,13 @@ jobs:
           git init -q && git config user.email ci@example.com && git config user.name ci
           git add -A && git commit -qm "baseline from $prev"
 
-          # Customisations a real project makes to scaffolded files.
+          # Customisations a real project makes to scaffolded files. Assert
+          # each sed actually landed -- if a template line moves, this must
+          # fail loudly right here, not as a confusing grep failure later.
           sed -i 's/binding = "KV"/binding = "MODEL_PRICES"/' wrangler.toml
+          grep -q 'MODEL_PRICES' wrangler.toml || { echo "::error::sed did not rename the KV binding in wrangler.toml; the template line may have moved" >&2; exit 1; }
           sed -i 's|// The deploy pipeline smoke-tests this endpoint|// CUSTOM ROUTE MARKER\n    // The deploy pipeline smoke-tests this endpoint|' src/index.ts
+          grep -q 'CUSTOM ROUTE MARKER' src/index.ts || { echo "::error::sed did not insert the CUSTOM ROUTE MARKER comment in src/index.ts; the template line may have moved" >&2; exit 1; }
           mkdir -p app && echo 'export const keep = true;' > app/keep.ts
           echo '- customised entry' >> CHANGELOG.md
           git add -A && git commit -qm "customise"
