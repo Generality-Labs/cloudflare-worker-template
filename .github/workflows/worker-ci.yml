@@ -30,13 +30,23 @@ on:
         description: >
           Also run `wrangler deploy --dry-run` against `bundle-env`, so a
           bundling or configuration error surfaces on the PR rather than at
-          deploy time. Needs no Cloudflare credentials.
+          deploy time. Needs no Cloudflare credentials. Set false to skip.
         type: boolean
         default: true
       bundle-env:
-        description: Wrangler environment the dry run targets.
+        description: >
+          Wrangler environment the dry run targets. Pass an empty string to
+          dry-run the top-level (local) config instead of a named
+          environment.
         type: string
         default: production
+      bundle-script:
+        description: >
+          npm script that performs the bundle dry run (for projects that
+          need a build step or a second wrangler config). Empty runs `npx
+          wrangler deploy --env <bundle-env> --dry-run` directly.
+        type: string
+        default: ""
       run-online-audits:
         description: >
           Also run zizmor's online audits (the manual-stage pre-commit hook).
@@ -84,7 +94,13 @@ jobs:
         if: ${{ inputs.run-bundle-check }}
         env:
           BUNDLE_ENV: ${{ inputs.bundle-env }} # via env to avoid run-step template injection
-        run: npx wrangler deploy --env "$BUNDLE_ENV" --dry-run
+          BUNDLE_SCRIPT: ${{ inputs.bundle-script }}
+        run: |
+          if [ -n "$BUNDLE_SCRIPT" ]; then
+            npm run "$BUNDLE_SCRIPT"
+          else
+            npx wrangler deploy --env "$BUNDLE_ENV" --dry-run
+          fi
 
       # uvx runs pre-commit without the project needing any Python setup of
       # its own; the pinned interpreter matches the scaffold's
