@@ -115,6 +115,7 @@ jobs:
         # (the previous step) then resolves, and a lockfile refresh must see
         # that resolved package.json, not the pre-resolution one — otherwise
         # the update PR still ships a stale lockfile.
+        id: lockfile
         if: steps.state.outputs.changed == 'true'
         run: |
           if git diff --quiet HEAD -- package.json; then
@@ -125,7 +126,17 @@ jobs:
             echo "package.json has conflict markers; skipping lockfile refresh until they are resolved."
             exit 0
           fi
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          # Fail soft: npm 10 crashes on `--package-lock-only` for a
+          # consumer whose package.json predates the `overrides` fix
+          # (npm error "Cannot read properties of null (reading
+          # 'edgesOut')"). A crash here must not stop "Open pull request"
+          # from running — the PR should always open, with a stale lockfile
+          # flagged rather than no PR at all.
+          if ! npm install --package-lock-only --ignore-scripts --no-audit --no-fund; then
+            echo "::warning::package-lock.json refresh failed (see log); this PR ships a stale lockfile — run npm install locally before merging"
+            echo "lockfile=stale" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
       - name: Open pull request
         if: steps.state.outputs.changed == 'true'
@@ -134,6 +145,7 @@ jobs:
           BRANCH: ${{ inputs.branch }}
           REF: ${{ inputs.template-ref }}
           CONFLICTS: ${{ steps.state.outputs.conflicts }}
+          LOCKFILE: ${{ steps.lockfile.outputs.lockfile }}
         run: |
           git checkout -b "$BRANCH"
           git add -A
@@ -146,6 +158,11 @@ jobs:
             BODY="$BODY
 
           :warning: The merge conflicted. Check for leftover conflict markers before merging."
+          fi
+          if [ "$LOCKFILE" = "stale" ]; then
+            BODY="$BODY
+
+          :warning: package-lock.json refresh failed (see log); this PR ships a stale lockfile — run npm install locally before merging."
           fi
           BODY="$BODY
 
