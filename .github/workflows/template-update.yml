@@ -77,20 +77,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           uvx copier update --defaults --trust --vcs-ref "$REF"
 
-      - name: Refresh package-lock.json if package.json changed
-        # copier only rewrites the scaffolded package.json; a stale lockfile
-        # would make the consumer's `npm ci` fail on the update PR.
-        run: |
-          if git diff --quiet -- package.json && [ -z "$(git status --porcelain -- package.json)" ]; then
-            echo "package.json unchanged; lockfile left alone."
-            exit 0
-          fi
-          if git grep -qI -e '^<<<<<<< ' -- package.json; then
-            echo "package.json has conflict markers; skipping lockfile refresh until they are resolved."
-            exit 0
-          fi
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-
       - name: Detect changes and conflicts
         id: state
         run: |
@@ -122,6 +108,24 @@ jobs:
             project's local customisations while adopting the template's
             intent. Do not change anything outside the conflicted regions, and
             leave no conflict markers behind.
+
+      - name: Refresh package-lock.json if package.json changed
+        # Runs after conflict resolution, not right after `copier update`:
+        # copier can leave package.json with conflict markers that Claude
+        # (the previous step) then resolves, and a lockfile refresh must see
+        # that resolved package.json, not the pre-resolution one — otherwise
+        # the update PR still ships a stale lockfile.
+        if: steps.state.outputs.changed == 'true'
+        run: |
+          if git diff --quiet HEAD -- package.json; then
+            echo "package.json unchanged; lockfile left alone."
+            exit 0
+          fi
+          if git grep -qI -e '^<<<<<<< ' -- package.json; then
+            echo "package.json has conflict markers; skipping lockfile refresh until they are resolved."
+            exit 0
+          fi
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
 
       - name: Open pull request
         if: steps.state.outputs.changed == 'true'
