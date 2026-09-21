@@ -31,6 +31,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A freshly scaffolded project's first `npm install` no longer dies with
+  `Cannot read properties of null (reading 'edgesOut')`: the scaffold now
+  carries a `vitest` override that collapses every `vitest` spec in the tree
+  to the project's own range, side-stepping the npm 10 arborist crash on
+  vitest 4.1's optional peer cycle (npm 10.9 ships with Node 22, so CI and a
+  first-time user both hit it).
 - `passWithNoTests` now applies only to the `unit` vitest project. An empty
   `worker` project fails instead of passing silently (previously a
   mis-configured include glob could make the whole suite pass with zero
