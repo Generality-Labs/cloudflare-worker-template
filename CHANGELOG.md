@@ -13,6 +13,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   bundling and configuration errors surface on the PR instead of at deploy
   time.
 
+### Changed
+
+- `template-update.yml` refreshes `package-lock.json` when the update
+  touched `package.json`, and opens the update PR as a draft.
+
 ### Fixed
 
 - `passWithNoTests` now applies only to the `unit` vitest project. An empty
