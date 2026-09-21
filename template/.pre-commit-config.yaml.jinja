@@ -47,6 +47,10 @@ repos:
       # correction needs a human to approve it, so --write-changes is dropped.
       - id: typos # spell-check code, comments, and docs
         args: [--force-exclude]
+        # .copier-answers.yml's `_commit` is a git SHA fragment, not prose --
+        # any hex string can coincidentally contain a substring the checker
+        # mistakes for a misspelling.
+        exclude: ^\.copier-answers\.yml$
 
 {% endif %}
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
