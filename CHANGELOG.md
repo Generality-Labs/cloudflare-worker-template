@@ -13,6 +13,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   bundling and configuration errors surface on the PR instead of at deploy
   time.
 
+### Fixed
+
+- `passWithNoTests` now applies only to the `unit` vitest project. An empty
+  `worker` project fails instead of passing silently (previously a
+  mis-configured include glob could make the whole suite pass with zero
+  tests).
+
 ## [1.0.0] - 2026-08-25
 
 ### Changed

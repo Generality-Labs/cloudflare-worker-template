@@ -23,6 +23,10 @@ export default defineConfig(async () => {
             name: "unit",
             include: ["test/**/*.test.ts"],
             exclude: ["test/worker.test.ts"],
+            // A fresh scaffold has no unit tests yet; don't fail this project
+            // while it is empty. The worker project always has tests, so an
+            // accidentally-empty worker suite still fails.
+            passWithNoTests: true,
           },
         },
         {
@@ -41,8 +45,6 @@ export default defineConfig(async () => {
           },
         },
       ],
-      // A fresh scaffold has no unit tests yet; don't fail the empty project.
-      passWithNoTests: true,
     },
   };
 });
@@ -64,6 +66,10 @@ export default defineConfig({
           name: "unit",
           include: ["test/**/*.test.ts"],
           exclude: ["test/worker.test.ts"],
+          // A fresh scaffold has no unit tests yet; don't fail this project
+          // while it is empty. The worker project always has tests, so an
+          // accidentally-empty worker suite still fails.
+          passWithNoTests: true,
         },
       },
       {
@@ -74,8 +80,6 @@ export default defineConfig({
         },
       },
     ],
-    // A fresh scaffold has no unit tests yet; don't fail the empty project.
-    passWithNoTests: true,
   },
 });
 {% endif %}
