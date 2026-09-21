@@ -53,6 +53,12 @@ npx wrangler dev --test-scheduled
 curl "http://localhost:8787/__scheduled?cron=0+3+*+*+*"
 ```
 {% endif %}
+{% if use_assets %}
+
+## Static assets
+
+Files under `public/` are served directly for matching paths; requests that match no file reach the Worker's `fetch()`. The `ASSETS` binding (`env.ASSETS.fetch(request)`) lets the Worker serve a file itself, for example as a single-page-app fallback. Asset routing is not exercised when tests call `worker.fetch()` directly; `test/worker.test.ts` fetches through the binding instead.
+{% endif %}
 
 ## Deployment
 

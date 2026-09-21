@@ -48,3 +48,13 @@ describe("KV binding", () => {
   });
 });
 {% endif %}
+{% if use_assets %}
+
+describe("static assets", () => {
+  it("serves public/index.html through the ASSETS binding", async () => {
+    const res = await env.ASSETS.fetch(new Request("https://example.com/index.html"));
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain("<title>{{ project_name }}</title>");
+  });
+});
+{% endif %}

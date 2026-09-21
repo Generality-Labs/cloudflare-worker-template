@@ -51,6 +51,7 @@ jobs:
             --data use_staging=true --data use_d1=true \
             --data use_r2=true --data use_cron=true \
             --data use_playwright=true --data use_kv=true \
+            --data use_assets=true \
             . /tmp/out-full
 
           for out in /tmp/out-min /tmp/out-full; do
@@ -67,7 +68,8 @@ jobs:
 
           # Feature files present for full, absent for min
           for f in migrations/0001_init.sql cors.dev.json cors.staging.json \
-            cors.production.json test/env.d.ts test/apply-migrations.ts; do
+            cors.production.json test/env.d.ts test/apply-migrations.ts \
+            public/index.html; do
             test -e "/tmp/out-full/$f"
             test ! -e "/tmp/out-min/$f"
           done
@@ -129,6 +131,11 @@ jobs:
           grep -q '\[\[env.production.kv_namespaces\]\]' /tmp/out-full/wrangler.toml
           grep -q '\[\[env.staging.kv_namespaces\]\]' /tmp/out-full/wrangler.toml
           refute grep -q 'kv_namespaces' /tmp/out-min/wrangler.toml
+
+          # Static assets are opt-in: one inheritable top-level [assets] block.
+          grep -q '^\[assets\]$' /tmp/out-full/wrangler.toml
+          refute grep -q '^\[assets\]$' /tmp/out-min/wrangler.toml
+          refute grep -q 'env.production.assets' /tmp/out-full/wrangler.toml
 
           # use_typos defaults on, and answering no drops the hook
           uvx copier copy --trust --defaults --vcs-ref=HEAD \

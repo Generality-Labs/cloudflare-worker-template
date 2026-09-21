@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `use_assets` question: scaffolds a `public/` directory with an `[assets]`
+  block and `ASSETS` binding, a runtime test that fetches through the
+  binding, and a README section.
 - `worker-ci.yml` runs `wrangler deploy --env production --dry-run` after the
   tests (inputs `run-bundle-check`, default on, and `bundle-env`), so
   bundling and configuration errors surface on the PR instead of at deploy

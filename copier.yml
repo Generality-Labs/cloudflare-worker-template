@@ -102,6 +102,15 @@ use_cron:
   help: Does this Worker run on a cron schedule?
   default: false
 
+use_assets:
+  type: bool
+  # Scaffolds an [assets] block serving public/ (a placeholder index.html is
+  # generated) with an ASSETS binding, and a runtime test that fetches it.
+  # `assets` is an inheritable wrangler key, so unlike bindings it is
+  # declared once at the top level and applies to every environment.
+  help: Does this Worker serve static files (a site or SPA) from a public/ directory?
+  default: false
+
 use_playwright:
   type: bool
   # Scaffolds a Playwright setup that launches `wrangler dev` as its web

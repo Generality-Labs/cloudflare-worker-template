@@ -18,6 +18,8 @@ all call. It encodes one standard so the Worker repos don't drift:
 - **pre-commit** stack: Biome (lint + format — the TS analogue of ruff),
   [zizmor](https://docs.zizmor.sh/) (Actions security), actionlint, mdformat,
   optionally typos
+- Optional **static assets** (`use_assets`): `public/` served ahead of the
+  Worker, with an `ASSETS` binding and a runtime test
 - Shared **`worker-ci`** and **`worker-deploy`** reusable workflows, so every
   repo's CI and deploy pipeline is a thin caller
 - **Keep a Changelog** `CHANGELOG.md`, SHA-pinned actions, Dependabot for
@@ -31,9 +33,10 @@ uvx copier copy gh:Generality-Labs/cloudflare-worker-template my-new-worker
 ```
 
 You'll be asked for the name and description, whether to add a staging
-environment, which resources the Worker uses (D1, R2, KV, cron triggers), the
-Node version, and whether to add a Playwright e2e setup, run the typos
-spell-checker, and open the automatic template-update PRs.
+environment, which resources the Worker uses (D1, R2, KV, cron triggers),
+whether it serves static files, the Node version, and whether to add a
+Playwright e2e setup, run the typos spell-checker, and open the automatic
+template-update PRs.
 
 After scaffolding, the copier message lists the resource-creation commands
 (`wrangler d1 create` / `wrangler r2 bucket create`) whose ids/names go into
