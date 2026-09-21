@@ -20,14 +20,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   block and `ASSETS` binding, a runtime test that fetches through the
   binding, and a README section.
 - `worker-ci.yml` runs `wrangler deploy --env production --dry-run` after the
-  tests (inputs `run-bundle-check`, default on, and `bundle-env`), so
-  bundling and configuration errors surface on the PR instead of at deploy
-  time.
+  tests (inputs `run-bundle-check`, default on, `bundle-env`, and
+  `bundle-script` for projects whose bundle needs a build step or a second
+  wrangler config), so bundling and configuration errors surface on the PR
+  instead of at deploy time.
+- README "Versioning": the rule for what a `v1`-moving change may do to a
+  consumer's CI — new checks ship default-off, or default-on only when
+  verified credential-free and green against every live consumer with a
+  disable input; anything a consumer must act on is a major.
 
 ### Changed
 
 - `template-update.yml` refreshes `package-lock.json` when the update
   touched `package.json`, and opens the update PR as a draft.
+- `template-update.yml`'s lockfile refresh no longer fails the whole update
+  job: a failed `npm install --package-lock-only` prints an `::warning::`
+  and lets the PR open with the stale lockfile called out in its body.
 
 ### Fixed
 

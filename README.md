@@ -46,8 +46,10 @@ After scaffolding, the copier message lists the resource-creation commands
   with **Workers Editor** at the Workers product scope (deploys any existing
   Worker, including its KV/R2/D1 bindings), plus **Zone > Workers Routes >
   Write** on each zone the Worker has routes or Custom Domains in, plus **D1
-  Edit** only if CI applies migrations. Editor cannot *create* a Worker, so
-  the very first deploy of a new Worker is done by hand (see below).
+  Edit** only if CI applies migrations. Routes Write is only needed to add,
+  change or remove a route or Custom Domain; once one exists, Editor alone
+  can redeploy it. Editor cannot *create* a Worker, so the very first deploy
+  of a new Worker is done by hand (see below).
 - `CLOUDFLARE_ACCOUNT_ID` — the Cloudflare account id
 
 ### First deploy
@@ -292,14 +294,26 @@ has none. Establish that baseline by hand, once:
    ```bash
    rsync -a --ignore-existing /tmp/render/ ./
    git status --short   # new files
-   diff -r /tmp/render . | grep '^diff'   # files to merge by hand
+   diff -rq --exclude=node_modules --exclude=.git /tmp/render .   # files to merge by hand
    ```
 
    The usual hand-merges are `.github/workflows/ci.yml`, `.gitignore`,
    `README.md`, `package.json`, `src/index.ts`, `tsconfig.json`, and
    `wrangler.toml`. Keep the project's code and resource ids; take the
    template's structure (named environments with a `-dev` top level, the
-   `typecheck` script, `test/` as the test directory).
+   `typecheck` script, `test/` as the test directory — `git mv tests test`
+   if the project used the plural, the template's convention). A few more
+   things a real adoption needs that are easy to miss because nothing fails
+   loudly without them:
+
+   - `package.json` needs `"type": "module"` — the vitest pool is ESM-only.
+   - If any test imports a `node:` module, `tsconfig.json`'s `types` array
+     needs `@types/node` and `"node"` added: a non-empty `types` array
+     disables TypeScript's automatic `@types` discovery, so leaving it out
+     fails silently until that import is type-checked.
+   - Reconcile `vitest.config.ts` and `test/worker.test.ts` against the
+     render so the Copier baseline actually matches what `copier update`
+     will diff against later, rather than diverging from day one.
 
 1. Copy `/tmp/render/.copier-answers.yml` into the repo and set `_src_path` to
    `gh:Generality-Labs/cloudflare-worker-template` (a local render records the
@@ -328,6 +342,11 @@ tag-pinned refs from `Generality-Labs/*` while still requiring commit-SHA pins
 for third-party actions, and the generated `.github/dependabot.yml` tells
 Dependabot to leave `Generality-Labs/*` alone so it doesn't rewrite the moving
 tag to a fixed version on every release.
+
+A change that moves `v1` runs in every consumer's CI without a PR there. New
+checks must ship default-off, or default-on only when verified
+credential-free and green against every live consumer, with an input to
+disable them; anything a consumer must act on is a major (v2) and a new tag.
 
 ## Operational gotchas
 
