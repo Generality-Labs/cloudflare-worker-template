@@ -2,9 +2,9 @@ name: Worker CI
 
 # Reusable CI for Generality Cloudflare Worker projects: install, type-check,
 # test (vitest running inside workerd via @cloudflare/vitest-pool-workers),
-# and the shared pre-commit stack (Biome, actionlint, zizmor, mdformat).
-# Consumers call it from a thin workflow — see the scaffolded
-# `.github/workflows/ci.yml`.
+# validate the deploy bundle with `wrangler deploy --dry-run`, and the shared
+# pre-commit stack (Biome, actionlint, zizmor, mdformat). Consumers call it
+# from a thin workflow — see the scaffolded `.github/workflows/ci.yml`.
 on:
   workflow_call:
     inputs:
@@ -26,13 +26,25 @@ on:
         description: Also run the pre-commit stack.
         type: boolean
         default: true
+      run-bundle-check:
+        description: >
+          Also run `wrangler deploy --dry-run` against `bundle-env`, so a
+          bundling or configuration error surfaces on the PR rather than at
+          deploy time. Needs no Cloudflare credentials.
+        type: boolean
+        default: true
+      bundle-env:
+        description: Wrangler environment the dry run targets.
+        type: string
+        default: production
       run-online-audits:
         description: >
           Also run zizmor's online audits (the manual-stage pre-commit hook).
           They query the GitHub API about every repo referenced in `uses:`,
-          and the default GITHUB_TOKEN cannot read this (private) template
-          repo — so for consumers the audit errors out. Enable only when the
-          job's token can read everything the workflows reference.
+          so a consumer whose workflows reference any repo the job's token
+          cannot read gets an error rather than a finding. Off by default;
+          the template repo itself is public, so enabling this is safe for
+          consumers that only reference public repos.
         type: boolean
         default: false
 
@@ -67,6 +79,12 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Validate the deploy bundle (wrangler deploy --dry-run)
+        if: ${{ inputs.run-bundle-check }}
+        env:
+          BUNDLE_ENV: ${{ inputs.bundle-env }} # via env to avoid run-step template injection
+        run: npx wrangler deploy --env "$BUNDLE_ENV" --dry-run
 
       # uvx runs pre-commit without the project needing any Python setup of
       # its own; the pinned interpreter matches the scaffold's

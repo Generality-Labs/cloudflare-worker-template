@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- `worker-ci.yml` runs `wrangler deploy --env production --dry-run` after the
+  tests (inputs `run-bundle-check`, default on, and `bundle-env`), so
+  bundling and configuration errors surface on the PR instead of at deploy
+  time.
+
 ## [1.0.0] - 2026-08-25
 
 ### Changed
