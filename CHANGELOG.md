@@ -6,6 +6,51 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Template CI renders the previous release, customises it like a real
+  project (renamed KV binding, extra code and files), and runs `copier
+  update` to the commit under review; a lost customisation or a conflict
+  marker fails the build.
+- README: how to adopt the template in an existing Worker repo (baseline
+  render, hand-merge list, `copier update` proof). Token guidance now names
+  the roles (Workers Editor, Workers Routes Write, D1 Edit) and the
+  first-deploy-by-hand rule.
+- `use_assets` question: scaffolds a `public/` directory with an `[assets]`
+  block and `ASSETS` binding, a runtime test that fetches through the
+  binding, and a README section.
+- `worker-ci.yml` runs `wrangler deploy --env production --dry-run` after the
+  tests (inputs `run-bundle-check`, default on, `bundle-env`, and
+  `bundle-script` for projects whose bundle needs a build step or a second
+  wrangler config), so bundling and configuration errors surface on the PR
+  instead of at deploy time.
+- README "Versioning": the rule for what a `v1`-moving change may do to a
+  consumer's CI — new checks ship default-off, or default-on only when
+  verified credential-free and green against every live consumer with a
+  disable input; anything a consumer must act on is a major.
+
+### Changed
+
+- `template-update.yml` refreshes `package-lock.json` when the update
+  touched `package.json`, and opens the update PR as a draft.
+- `template-update.yml`'s lockfile refresh no longer fails the whole update
+  job: a failed `npm install --package-lock-only` prints an `::warning::`
+  and lets the PR open with the stale lockfile called out in its body.
+- `worker-ci.yml` and `worker-deploy.yml` `node-version` default is now `26`
+  (was `22`); pass it explicitly if you need something else.
+
+### Fixed
+
+- Scaffold installs failed on Node 22 (npm 10 arborist crash on
+  lockfile-less installs, `Cannot read properties of null (reading
+  'edgesOut')`); the toolchain floor is now Node 24+ (default 26, npm 11)
+  via `.nvmrc`, `engines.node` and `engine-strict`, with a copier validator
+  on `node_version`.
+- `passWithNoTests` now applies only to the `unit` vitest project. An empty
+  `worker` project fails instead of passing silently (previously a
+  mis-configured include glob could make the whole suite pass with zero
+  tests).
+
 ## [1.0.0] - 2026-08-25
 
 ### Changed

@@ -4,6 +4,9 @@
   "description": "{{ project_description }}",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">={{ node_version }}"
+  },
   {% if license == 'MIT' %}
   "license": "MIT",
   {% else %}

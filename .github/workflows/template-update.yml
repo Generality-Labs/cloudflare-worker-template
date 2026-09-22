@@ -58,10 +58,14 @@ jobs:
 
       - uses: astral-sh/setup-uv@ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d # v10.0.0
 
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "26"
+
       - name: Check the project is copier-managed
         run: |
           if [ ! -f .copier-answers.yml ]; then
-            echo "::error::No .copier-answers.yml — this project was not scaffolded by the template, so copier update has no baseline to merge from. Adopt the template first (see the template README)."
+            echo "::error::No .copier-answers.yml — this project was not scaffolded by the template, so copier update has no baseline to merge from. Adopt the template first: see 'Adopt the template in an existing Worker repo' in the template README."
             exit 1
           fi
 
@@ -105,6 +109,35 @@ jobs:
             intent. Do not change anything outside the conflicted regions, and
             leave no conflict markers behind.
 
+      - name: Refresh package-lock.json if package.json changed
+        # Runs after conflict resolution, not right after `copier update`:
+        # copier can leave package.json with conflict markers that Claude
+        # (the previous step) then resolves, and a lockfile refresh must see
+        # that resolved package.json, not the pre-resolution one — otherwise
+        # the update PR still ships a stale lockfile.
+        id: lockfile
+        if: steps.state.outputs.changed == 'true'
+        run: |
+          if git diff --quiet HEAD -- package.json; then
+            echo "package.json unchanged; lockfile left alone."
+            exit 0
+          fi
+          if git grep -qI -e '^<<<<<<< ' -- package.json; then
+            echo "package.json has conflict markers; skipping lockfile refresh until they are resolved."
+            exit 0
+          fi
+          # Fail soft: npm 10 crashes on `--package-lock-only` for a
+          # consumer whose package.json predates the `overrides` fix
+          # (npm error "Cannot read properties of null (reading
+          # 'edgesOut')"). A crash here must not stop "Open pull request"
+          # from running — the PR should always open, with a stale lockfile
+          # flagged rather than no PR at all.
+          if ! npm install --package-lock-only --ignore-scripts --no-audit --no-fund; then
+            echo "::warning::package-lock.json refresh failed (see log); this PR ships a stale lockfile — run npm install locally before merging"
+            echo "lockfile=stale" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
       - name: Open pull request
         if: steps.state.outputs.changed == 'true'
         env:
@@ -112,6 +145,7 @@ jobs:
           BRANCH: ${{ inputs.branch }}
           REF: ${{ inputs.template-ref }}
           CONFLICTS: ${{ steps.state.outputs.conflicts }}
+          LOCKFILE: ${{ steps.lockfile.outputs.lockfile }}
         run: |
           git checkout -b "$BRANCH"
           git add -A
@@ -125,11 +159,17 @@ jobs:
 
           :warning: The merge conflicted. Check for leftover conflict markers before merging."
           fi
+          if [ "$LOCKFILE" = "stale" ]; then
+            BODY="$BODY
+
+          :warning: package-lock.json refresh failed (see log); this PR ships a stale lockfile — run npm install locally before merging."
+          fi
           BODY="$BODY
 
-          Note: opened with the default \`GITHUB_TOKEN\`, so GitHub will not run
-          this repository's own workflows on it. Close and reopen the PR, or push
-          a commit, to get CI to run."
+          Opened as a draft with the default \`GITHUB_TOKEN\`, so GitHub will
+          not run this repository's own workflows on it. Push a commit, or
+          close and reopen the PR, to get CI to run; mark it ready when it is
+          green."
 
-          gh pr create --head "$BRANCH" --title "chore: apply template updates from $REF" --body "$BODY" \
+          gh pr create --draft --head "$BRANCH" --title "chore: apply template updates from $REF" --body "$BODY" \
             || gh pr edit "$BRANCH" --body "$BODY"

@@ -38,16 +38,19 @@ on:
         type: string
         default: ""
       node-version:
-        description: Node version to run against.
+        description: Node version to run against. Must be 24 or later.
         type: string
-        default: "22"
+        default: "26"
       working-directory:
         description: Directory holding package.json.
         type: string
         default: "."
     secrets:
       cloudflare-api-token:
-        description: API token with Workers (and D1, if used) edit permissions.
+        description: >
+          Account-owned token: Workers Editor (product scope), plus Zone >
+          Workers Routes > Write on the zone when the Worker has routes or a
+          Custom Domain, plus D1 Edit when migrations-script is set.
         required: true
       cloudflare-account-id:
         description: Cloudflare account id.

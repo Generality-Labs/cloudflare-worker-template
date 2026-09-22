@@ -45,8 +45,10 @@ _message_after_copy: |
   {% endif %}
   {% endif %}
 
-  Deploys run from CI: add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as
-  repository secrets (see README.md).
+  Deploys run from CI: add CLOUDFLARE_API_TOKEN (Workers Editor + Workers
+  Routes Write on the zone) and CLOUDFLARE_ACCOUNT_ID as repository secrets.
+  Editor cannot create a Worker, so do the FIRST deploy by hand:
+    npx wrangler login && npm run deploy
 
 project_name:
   type: str
@@ -102,6 +104,15 @@ use_cron:
   help: Does this Worker run on a cron schedule?
   default: false
 
+use_assets:
+  type: bool
+  # Scaffolds an [assets] block serving public/ (a placeholder index.html is
+  # generated) with an ASSETS binding, and a runtime test that fetches it.
+  # `assets` is an inheritable wrangler key, so unlike bindings it is
+  # declared once at the top level and applies to every environment.
+  help: Does this Worker serve static files (a site or SPA) from a public/ directory?
+  default: false
+
 use_playwright:
   type: bool
   # Scaffolds a Playwright setup that launches `wrangler dev` as its web
@@ -113,8 +124,12 @@ use_playwright:
 
 node_version:
   type: str
-  help: Node version for CI and deploys (the Worker itself runs on workerd)
-  default: "22"
+  help: >-
+    Node major for the toolchain (wrangler, vitest, tsc). 24 or later: Node
+    22's npm 10 crashes on a fresh `npm install` of this scaffold. The Worker
+    itself runs on workerd.
+  default: "26"
+  validator: "{% if node_version | int < 24 %}Node 24 or later is required (npm 11); Node 22's npm crashes installing this scaffold{% endif %}"
 
 use_typos:
   type: bool

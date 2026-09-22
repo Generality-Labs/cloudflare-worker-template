@@ -25,6 +25,16 @@ compatibility_date = "2026-07-01"
 enabled = true
 invocation_logs = true
 
+{% if use_assets %}
+# Static files in public/ are served for any path that matches a file;
+# everything else reaches fetch(). Inherited by every environment (assets is
+# not a binding). The ASSETS binding lets the Worker serve a file itself,
+# e.g. `return env.ASSETS.fetch(request)` as an SPA fallback.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+{% endif %}
 {% if use_d1 %}
 # Local development/test database — simulated under .wrangler/, so the id is
 # a placeholder that never has to exist.

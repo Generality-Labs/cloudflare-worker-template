@@ -18,11 +18,14 @@ all call. It encodes one standard so the Worker repos don't drift:
 - **pre-commit** stack: Biome (lint + format — the TS analogue of ruff),
   [zizmor](https://docs.zizmor.sh/) (Actions security), actionlint, mdformat,
   optionally typos
+- Optional **static assets** (`use_assets`): `public/` served ahead of the
+  Worker, with an `ASSETS` binding and a runtime test
 - Shared **`worker-ci`** and **`worker-deploy`** reusable workflows, so every
   repo's CI and deploy pipeline is a thin caller
 - **Keep a Changelog** `CHANGELOG.md`, SHA-pinned actions, Dependabot for
   actions and npm
 - A Claude Code `SessionStart` hook that pre-warms the toolchain
+- **Node 24+ toolchain** (`.nvmrc`, `engines`, `engine-strict`)
 
 ## Scaffold a new Worker
 
@@ -31,17 +34,32 @@ uvx copier copy gh:Generality-Labs/cloudflare-worker-template my-new-worker
 ```
 
 You'll be asked for the name and description, whether to add a staging
-environment, which resources the Worker uses (D1, R2, KV, cron triggers), the
-Node version, and whether to add a Playwright e2e setup, run the typos
-spell-checker, and open the automatic template-update PRs.
+environment, which resources the Worker uses (D1, R2, KV, cron triggers),
+whether it serves static files, the Node version, and whether to add a
+Playwright e2e setup, run the typos spell-checker, and open the automatic
+template-update PRs.
 
 After scaffolding, the copier message lists the resource-creation commands
 (`wrangler d1 create` / `wrangler r2 bucket create`) whose ids/names go into
 `wrangler.toml`, and CI needs two repository secrets:
 
-- `CLOUDFLARE_API_TOKEN` — token with Workers (and D1, if used) edit
-  permissions
+- `CLOUDFLARE_API_TOKEN` — an [account-owned token](https://developers.cloudflare.com/fundamentals/api/get-started/account-owned-tokens/)
+  with **Workers Editor** at the Workers product scope (deploys any existing
+  Worker, including its KV/R2/D1 bindings), plus **Zone > Workers Routes >
+  Write** on each zone the Worker has routes or Custom Domains in, plus **D1
+  Edit** only if CI applies migrations. Routes Write is only needed to add,
+  change or remove a route or Custom Domain; once one exists, Editor alone
+  can redeploy it. Editor cannot *create* a Worker, so the very first deploy
+  of a new Worker is done by hand (see below).
 - `CLOUDFLARE_ACCOUNT_ID` — the Cloudflare account id
+
+### First deploy
+
+`wrangler deploy` for a Worker that does not exist yet needs Workers **Admin**.
+Rather than give CI that, deploy once from a logged-in shell
+(`npx wrangler login`, then `npm run deploy`); every later push to `main` is a
+redeploy that Editor can do. The same applies the first time a new
+`[env.staging]` is added.
 
 ## How environments work
 
@@ -124,6 +142,30 @@ fails with `[1010] auth.forbidden`); and keep Access-editing rights out of
 the CI deploy token — mint short-TTL tokens for the occasional toggle
 instead. Also note Access does not log requests a Bypass policy admits.
 
+## Node version
+
+The Worker runs on `workerd`, not Node, so the `node_version` copier question
+only picks the *toolchain* (wrangler, vitest, tsc) — it never affects the
+deployed Worker's runtime. The scaffold pins that choice three ways: the
+rendered `.nvmrc`, `package.json`'s `engines.node`, and `.npmrc`'s
+`engine-strict=true`. `nvm use` / `fnm use` pick up `.nvmrc` automatically; CI
+uses the same value via each reusable workflow's `node-version` input, which
+the scaffolded `ci.yml` / `deploy.yml` always pass explicitly.
+
+Why 24+: Node 22 ships npm 10, whose arborist crashes
+(`Cannot read properties of null (reading 'edgesOut')`) resolving vitest's
+optional peer set on a lockfile-less install of this scaffold. Node 24 and
+later ship npm 11, which installs cleanly. The copier `node_version` question
+validates against anything below 24, so a new project can no longer be
+scaffolded for Node 22 at all. `engines`/`engine-strict` are the second line
+of defence, not a full substitute for the validator: npm only checks
+`engines` *after* it has built the dependency tree, so once a lockfile exists
+(`npm ci`, or any `npm install` re-run) a mismatched Node cleanly fails with
+`EBADENGINE` — but a truly fresh, lockfile-less `npm install` on Node 22
+still hits the raw arborist crash first, because that check never gets a
+chance to run. Run `nvm use` (or otherwise switch to `.nvmrc`'s version)
+*before* the first `npm install`, not after it fails.
+
 ## The reusable workflows
 
 Generated projects call these rather than duplicating CI. To bump CI for every
@@ -138,7 +180,7 @@ jobs:
   ci:
     uses: Generality-Labs/cloudflare-worker-template/.github/workflows/worker-ci.yml@v1
     with:
-      node-version: "22"
+      node-version: "26"
 ```
 
 [`worker-deploy.yml`](.github/workflows/worker-deploy.yml) — optional D1
@@ -256,6 +298,67 @@ demand) and opens a PR when the template's *scaffolded files* have changed.
 Reusable-workflow changes need no update run: consumers pin `@v1`, so moving
 the tag propagates those immediately.
 
+## Adopt the template in an existing Worker repo
+
+`copier update` needs a `.copier-answers.yml` recording which template
+revision the project was generated from; a repo that predates the template
+has none. Establish that baseline by hand, once:
+
+1. On a branch, render the template into a scratch directory with the answers
+   the project should have, pinned to a **release tag**:
+
+   ```bash
+   uvx copier copy --trust --vcs-ref v1.1.0 \
+     --data project_name=my-worker --data project_description="..." \
+     --data use_kv=true --data use_assets=true \
+     gh:Generality-Labs/cloudflare-worker-template /tmp/render
+   ```
+
+1. Copy in everything that does not exist yet, then merge the rest by hand:
+
+   ```bash
+   rsync -a --ignore-existing /tmp/render/ ./
+   git status --short   # new files
+   diff -rq --exclude=node_modules --exclude=.git /tmp/render .   # files to merge by hand
+   ```
+
+   The usual hand-merges are `.github/workflows/ci.yml`, `.gitignore`,
+   `README.md`, `package.json`, `src/index.ts`, `tsconfig.json`, and
+   `wrangler.toml`. Keep the project's code and resource ids; take the
+   template's structure (named environments with a `-dev` top level, the
+   `typecheck` script, `test/` as the test directory — `git mv tests test`
+   if the project used the plural, the template's convention). A few more
+   things a real adoption needs that are easy to miss because nothing fails
+   loudly without them:
+
+   - `package.json` needs `"type": "module"` — the vitest pool is ESM-only.
+   - If any test imports a `node:` module, `tsconfig.json`'s `types` array
+     needs `@types/node` and `"node"` added: a non-empty `types` array
+     disables TypeScript's automatic `@types` discovery, so leaving it out
+     fails silently until that import is type-checked.
+   - Reconcile `vitest.config.ts` and `test/worker.test.ts` against the
+     render so the Copier baseline actually matches what `copier update`
+     will diff against later, rather than diverging from day one.
+
+1. Copy `/tmp/render/.copier-answers.yml` into the repo and set `_src_path` to
+   `gh:Generality-Labs/cloudflare-worker-template` (a local render records the
+   local path). `_commit` must be the tag you rendered.
+
+1. Prove the baseline holds: in a throwaway clone of the branch, run
+   `uvx copier update --defaults --trust --vcs-ref v1.1.0`. Expected: no
+   changes (or only the files you hand-merged, as no-op re-applications).
+   Conflict markers here mean a hand-merge diverged from the template in a way
+   copier cannot follow; fix the file until the update is clean.
+
+1. Commit the baseline as one commit, separate from reformatting (Biome and
+   mdformat will touch most files; do that in its own commit so `git blame`
+   stays useful).
+
+Template CI keeps a fixture for this path: it renders the previous release,
+customises it the way a real project does (renamed binding, extra routes and
+files), then runs `copier update` to the commit under review and fails if a
+customisation was lost or a conflict appeared.
+
 ## Versioning
 
 Tagged releases move a `v1` major tag via `bump-v1.yml`. Generated projects
@@ -264,6 +367,18 @@ tag-pinned refs from `Generality-Labs/*` while still requiring commit-SHA pins
 for third-party actions, and the generated `.github/dependabot.yml` tells
 Dependabot to leave `Generality-Labs/*` alone so it doesn't rewrite the moving
 tag to a fixed version on every release.
+
+A change that moves `v1` runs in every consumer's CI without a PR there. New
+checks must ship default-off, or default-on only when verified
+credential-free and green against every live consumer, with an input to
+disable them; anything a consumer must act on is a major (v2) and a new tag.
+
+`worker-ci.yml`'s and `worker-deploy.yml`'s `node-version` input default moved
+`22` -> `26` under `v1` (see [Node version](#node-version)) rather than as a
+major bump: the scaffold always passes `node_version` explicitly, so no
+consumer relying on the default silently changed underneath it. A consumer
+that omits `node-version` and wants something other than `26` should now pass
+it explicitly.
 
 ## Operational gotchas
 
