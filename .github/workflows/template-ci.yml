@@ -235,11 +235,12 @@ jobs:
           git init -q && git config user.email ci@example.com && git config user.name ci
           git add -A && git commit -qm "baseline from $prev"
 
-          # Customisations a real project makes to scaffolded files. Assert
+          # Customisations a real project makes to scaffolded files (a
+          # project-chosen binding name, extra code, extra files). Assert
           # each sed actually landed -- if a template line moves, this must
           # fail loudly right here, not as a confusing grep failure later.
-          sed -i 's/binding = "KV"/binding = "MODEL_PRICES"/' wrangler.toml
-          grep -q 'MODEL_PRICES' wrangler.toml || { echo "::error::sed did not rename the KV binding in wrangler.toml; the template line may have moved" >&2; exit 1; }
+          sed -i 's/binding = "KV"/binding = "SETTINGS"/' wrangler.toml
+          grep -q 'SETTINGS' wrangler.toml || { echo "::error::sed did not rename the KV binding in wrangler.toml; the template line may have moved" >&2; exit 1; }
           sed -i 's|// The deploy pipeline smoke-tests this endpoint|// CUSTOM ROUTE MARKER\n    // The deploy pipeline smoke-tests this endpoint|' src/index.ts
           grep -q 'CUSTOM ROUTE MARKER' src/index.ts || { echo "::error::sed did not insert the CUSTOM ROUTE MARKER comment in src/index.ts; the template line may have moved" >&2; exit 1; }
           mkdir -p app && echo 'export const keep = true;' > app/keep.ts
@@ -251,7 +252,7 @@ jobs:
           # No conflict markers anywhere.
           refute sh -c "git grep -lI -e '^<<<<<<< ' -- . | grep ."
           # Customisations survived.
-          grep -q 'binding = "MODEL_PRICES"' wrangler.toml
+          grep -q 'binding = "SETTINGS"' wrangler.toml
           refute grep -q 'binding = "KV"' wrangler.toml
           grep -q 'CUSTOM ROUTE MARKER' src/index.ts
           test -f app/keep.ts
