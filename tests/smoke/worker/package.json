@@ -5,6 +5,9 @@
   "private": true,
   "type": "module",
   "license": "MIT",
+  "engines": {
+    "node": ">=26"
+  },
   "scripts": {
     "dev": "wrangler dev",
     "typecheck": "tsc --noEmit",
@@ -19,8 +22,5 @@
     "typescript": "^7.0.2",
     "vitest": "^4.1.0",
     "wrangler": "^4.0.0"
-  },
-  "overrides": {
-    "vitest": "^4.1.0"
   }
 }

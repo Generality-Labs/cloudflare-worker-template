@@ -36,15 +36,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `template-update.yml`'s lockfile refresh no longer fails the whole update
   job: a failed `npm install --package-lock-only` prints an `::warning::`
   and lets the PR open with the stale lockfile called out in its body.
+- `worker-ci.yml` and `worker-deploy.yml` `node-version` default is now `26`
+  (was `22`); pass it explicitly if you need something else.
 
 ### Fixed
 
-- A freshly scaffolded project's first `npm install` no longer dies with
-  `Cannot read properties of null (reading 'edgesOut')`: the scaffold now
-  carries a `vitest` override that collapses every `vitest` spec in the tree
-  to the project's own range, side-stepping the npm 10 arborist crash on
-  vitest 4.1's optional peer cycle (npm 10.9 ships with Node 22, so CI and a
-  first-time user both hit it).
+- Scaffold installs failed on Node 22 (npm 10 arborist crash on
+  lockfile-less installs, `Cannot read properties of null (reading
+  'edgesOut')`); the toolchain floor is now Node 24+ (default 26, npm 11)
+  via `.nvmrc`, `engines.node` and `engine-strict`, with a copier validator
+  on `node_version`.
 - `passWithNoTests` now applies only to the `unit` vitest project. An empty
   `worker` project fails instead of passing silently (previously a
   mis-configured include glob could make the whole suite pass with zero

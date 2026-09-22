@@ -25,6 +25,7 @@ all call. It encodes one standard so the Worker repos don't drift:
 - **Keep a Changelog** `CHANGELOG.md`, SHA-pinned actions, Dependabot for
   actions and npm
 - A Claude Code `SessionStart` hook that pre-warms the toolchain
+- **Node 24+ toolchain** (`.nvmrc`, `engines`, `engine-strict`)
 
 ## Scaffold a new Worker
 
@@ -141,6 +142,30 @@ fails with `[1010] auth.forbidden`); and keep Access-editing rights out of
 the CI deploy token — mint short-TTL tokens for the occasional toggle
 instead. Also note Access does not log requests a Bypass policy admits.
 
+## Node version
+
+The Worker runs on `workerd`, not Node, so the `node_version` copier question
+only picks the *toolchain* (wrangler, vitest, tsc) — it never affects the
+deployed Worker's runtime. The scaffold pins that choice three ways: the
+rendered `.nvmrc`, `package.json`'s `engines.node`, and `.npmrc`'s
+`engine-strict=true`. `nvm use` / `fnm use` pick up `.nvmrc` automatically; CI
+uses the same value via each reusable workflow's `node-version` input, which
+the scaffolded `ci.yml` / `deploy.yml` always pass explicitly.
+
+Why 24+: Node 22 ships npm 10, whose arborist crashes
+(`Cannot read properties of null (reading 'edgesOut')`) resolving vitest's
+optional peer set on a lockfile-less install of this scaffold. Node 24 and
+later ship npm 11, which installs cleanly. The copier `node_version` question
+validates against anything below 24, so a new project can no longer be
+scaffolded for Node 22 at all. `engines`/`engine-strict` are the second line
+of defence, not a full substitute for the validator: npm only checks
+`engines` *after* it has built the dependency tree, so once a lockfile exists
+(`npm ci`, or any `npm install` re-run) a mismatched Node cleanly fails with
+`EBADENGINE` — but a truly fresh, lockfile-less `npm install` on Node 22
+still hits the raw arborist crash first, because that check never gets a
+chance to run. Run `nvm use` (or otherwise switch to `.nvmrc`'s version)
+*before* the first `npm install`, not after it fails.
+
 ## The reusable workflows
 
 Generated projects call these rather than duplicating CI. To bump CI for every
@@ -155,7 +180,7 @@ jobs:
   ci:
     uses: Generality-Labs/cloudflare-worker-template/.github/workflows/worker-ci.yml@v1
     with:
-      node-version: "22"
+      node-version: "26"
 ```
 
 [`worker-deploy.yml`](.github/workflows/worker-deploy.yml) — optional D1
@@ -347,6 +372,13 @@ A change that moves `v1` runs in every consumer's CI without a PR there. New
 checks must ship default-off, or default-on only when verified
 credential-free and green against every live consumer, with an input to
 disable them; anything a consumer must act on is a major (v2) and a new tag.
+
+`worker-ci.yml`'s and `worker-deploy.yml`'s `node-version` input default moved
+`22` -> `26` under `v1` (see [Node version](#node-version)) rather than as a
+major bump: the scaffold always passes `node_version` explicitly, so no
+consumer relying on the default silently changed underneath it. A consumer
+that omits `node-version` and wants something other than `26` should now pass
+it explicitly.
 
 ## Operational gotchas
 

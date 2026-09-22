@@ -1,19 +1,12 @@
-{#
-  vitest and its override must stay on the same range. npm 10's arborist
-  crashes ("Cannot read properties of null (reading 'edgesOut')") on a
-  lockfile-less install of vitest >= 4.1: vitest's optional peer @vitest/ui
-  pulls @vitejs/devtools-vitest, which peers on `vitest: *`, which resolves
-  to the next major, whose own peer set pins that major back -- a peer cycle
-  npm 10 mishandles. The override collapses every vitest spec in the tree to
-  ours and keeps `npm install` working on the npm that ships with Node 22.
-#}
-{% set vitest_range = '^4.1.0' %}
 {
   "name": "{{ project_name }}",
   "version": "0.1.0",
   "description": "{{ project_description }}",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">={{ node_version }}"
+  },
   {% if license == 'MIT' %}
   "license": "MIT",
   {% else %}
@@ -51,10 +44,7 @@
     "@playwright/test": "^1.62.1",
     {% endif %}
     "typescript": "^5.9.0",
-    "vitest": "{{ vitest_range }}",
+    "vitest": "^4.1.0",
     "wrangler": "^4.0.0"
-  },
-  "overrides": {
-    "vitest": "{{ vitest_range }}"
   }
 }

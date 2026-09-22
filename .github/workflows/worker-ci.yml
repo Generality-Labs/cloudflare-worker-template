@@ -9,9 +9,9 @@ on:
   workflow_call:
     inputs:
       node-version:
-        description: Node version to run against.
+        description: Node version to run against. Must be 24 or later.
         type: string
-        default: "22"
+        default: "26"
       runs-on:
         description: Runner to execute on.
         type: string

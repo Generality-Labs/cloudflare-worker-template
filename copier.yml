@@ -124,8 +124,12 @@ use_playwright:
 
 node_version:
   type: str
-  help: Node version for CI and deploys (the Worker itself runs on workerd)
-  default: "22"
+  help: >-
+    Node major for the toolchain (wrangler, vitest, tsc). 24 or later: Node
+    22's npm 10 crashes on a fresh `npm install` of this scaffold. The Worker
+    itself runs on workerd.
+  default: "26"
+  validator: "{% if node_version | int < 24 %}Node 24 or later is required (npm 11); Node 22's npm crashes installing this scaffold{% endif %}"
 
 use_typos:
   type: bool

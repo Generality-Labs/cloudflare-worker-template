@@ -38,9 +38,9 @@ on:
         type: string
         default: ""
       node-version:
-        description: Node version to run against.
+        description: Node version to run against. Must be 24 or later.
         type: string
-        default: "22"
+        default: "26"
       working-directory:
         description: Directory holding package.json.
         type: string
