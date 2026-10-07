@@ -49,6 +49,12 @@ _message_after_copy: |
   Routes Write on the zone) and CLOUDFLARE_ACCOUNT_ID as repository secrets.
   Editor cannot create a Worker, so do the FIRST deploy by hand:
     npx wrangler login && npm run deploy
+  {% if use_template_update %}
+
+  The weekly template-update workflow opens its PR with the default token:
+  turn on Settings > Actions > General > "Allow GitHub Actions to create and
+  approve pull requests".
+  {% endif %}
 
 project_name:
   type: str

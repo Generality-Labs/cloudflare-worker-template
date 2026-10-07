@@ -15,6 +15,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   couldn't open its PR left every later run failing. The push now leases
   against the branch as checkout fetched it, so it still refuses to overwrite
   a commit pushed during the run.
+- `bump-v1.yml` annotates the release tag before moving `v1` onto the same
+  commit. With both tags lightweight, copier read the template's version as
+  `1`, so the weekly template update rewrote consumers' `_commit` to `v1`
+  instead of the release they were on. v1.1.0 shipped this way. Ported from
+  python-project-template 1.8.1.
+
+### Added
+
+- The README and the post-copy message name the repository setting the
+  template-update workflow needs: **Allow GitHub Actions to create and approve
+  pull requests**. Without it the run pushes its branch and fails to open the
+  PR.
 
 ## [1.1.0] - 2026-09-22
 
