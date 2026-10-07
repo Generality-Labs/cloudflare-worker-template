@@ -11,6 +11,10 @@ name: Bump v1
 on:
   release:
     types: [published]
+  # Started by template-release-on-merge.yml with --ref vX.Y.Z: a release it
+  # creates with the default Actions token raises no release event. On a
+  # dispatch, github.ref_name is the tag and github.sha its commit.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -27,8 +31,12 @@ jobs:
     # forward onto a breaking change, and a prerelease is by definition not what
     # consumers pinned to `@v1` should receive.
     if: >-
-      ${{ !github.event.release.prerelease
-          && startsWith(github.event.release.tag_name, 'v1.') }}
+      ${{ (github.event_name == 'release'
+            && !github.event.release.prerelease
+            && startsWith(github.event.release.tag_name, 'v1.'))
+          || (github.event_name == 'workflow_dispatch'
+            && github.ref_type == 'tag'
+            && startsWith(github.ref_name, 'v1.')) }}
     permissions:
       # Scoped to this job so the rest of the workflow stays read-only.
       contents: write # move the v1 tag
@@ -36,6 +44,28 @@ jobs:
       # No checkout on purpose: moving a ref needs the API, not a working copy,
       # and skipping it avoids persisting credentials on disk for a job that
       # holds the one token able to rewrite what every consumer runs.
+      - name: Refuse a dispatch on a prerelease or an older tag
+        # The release event path gets these checks from the release itself
+        # (prerelease flag) and from being the release just published. A
+        # dispatch can name any tag, and an older one would move v1 back for
+        # every consumer.
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$TAG" =~ ^v1\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::${TAG} is not a final v1.X.Y release tag" >&2
+            exit 1
+          fi
+          newest=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/git/matching-refs/tags/v1." --jq '.[].ref' \
+            | sed 's#^refs/tags/##' | grep -E '^v1\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)
+          if [ "$TAG" != "$newest" ]; then
+            echo "::error::${TAG} is not the newest v1 release tag (${newest}); v1 only moves forward" >&2
+            exit 1
+          fi
+
       - name: Refuse to move v1 off main
         env:
           GH_TOKEN: ${{ github.token }}
@@ -61,7 +91,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_SHA: ${{ github.sha }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
         run: |
           set -euo pipefail
           # Fetched rather than checked out, to keep this job free of a working
@@ -112,7 +142,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_SHA: ${{ github.sha }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
         run: |
           set -euo pipefail
           # The Move step below puts v1 on this same commit, and copier reads a
@@ -126,7 +156,9 @@ jobs:
           #
           # Publishing a release for a tag that does not exist yet -- the GitHub
           # UI's default, and `gh release create` without --verify-tag -- makes
-          # that tag lightweight. Rather than refuse the release over it, give
+          # that tag lightweight, and template-release-on-merge.yml creates its
+          # tag lightweight too, so this step runs on every release. Rather than
+          # refuse the release over it, give
           # the tag an annotation here so it outranks v1 and copier reads
           # "v1.2.0". Annotating v1 too would break it again: v1 is re-tagged on
           # every release, so it would always be the newer of the two.
