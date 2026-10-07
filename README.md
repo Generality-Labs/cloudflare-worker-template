@@ -386,6 +386,31 @@ consumer relying on the default silently changed underneath it. A consumer
 that omits `node-version` and wants something other than `26` should now pass
 it explicitly.
 
+### Releasing this template
+
+Each pull request adds a changelog fragment under `changelog.d/`
+(`uvx --from scriv scriv create`) instead of editing `CHANGELOG.md`. Releases
+use python-project-template's reusable release workflows, pinned to its `@v1`,
+in the mode that takes the version from the latest `vX.Y.Z` tag:
+
+1. _Actions_ → **Prepare template release** → _Run workflow_. It collects
+   `changelog.d/` into `CHANGELOG.md` and opens a **Release vX.Y.Z** pull
+   request. `auto` picks minor when a fragment adds, changes, deprecates or
+   removes something, and patch otherwise.
+2. On the pull request's Checks tab, click **Approve workflows to run**, then
+   review it.
+3. Merge it. **Template release on merge** tags the merge commit, creates the
+   GitHub release, and starts `bump-v1.yml`, which checks the changelog,
+   annotates the tag and moves `v1`.
+
+Both steps need _Settings → Actions → General_ → **Allow GitHub Actions to
+create and approve pull requests**. Re-running either workflow after a failure
+is safe. If bump-v1 fails after the tag exists, re-run it, or start it with
+`gh workflow run bump-v1.yml -R Generality-Labs/cloudflare-worker-template
+--ref vX.Y.Z`; on a dispatch it accepts only the newest final `v1.X.Y` tag.
+Publishing a release by hand from the GitHub UI still starts bump-v1, which
+refuses it unless the release's changelog section is already on main.
+
 ## Operational gotchas
 
 Paid for in incidents on real projects (mostly logfile-upload); read before
