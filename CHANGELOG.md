@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-10-07
+
+Repairs 1.1.1, which was tagged before `CHANGELOG.md` had a `[1.1.1]`
+section. `bump-v1.yml` refuses a release it can't find described, so it left
+`v1` on 1.1.0 and the 1.1.1 tag lightweight. Consumers land on 1.1.2 rather
+than 1.1.1; the contents are the same bar this changelog.
+
 ### Fixed
 
 - `template-update.yml` no longer fails every run once its update branch
