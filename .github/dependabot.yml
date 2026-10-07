@@ -7,6 +7,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7 # don't adopt a release until it's had time to be vetted/yanked
+    ignore:
+      # python-project-template's release workflows are referenced by moving
+      # major tag on purpose, so release fixes arrive when its v1 moves.
+      - dependency-name: "Generality-Labs/*"
     groups:
       actions:
         patterns: ["*"]

@@ -1,0 +1,41 @@
+name: Prepare template release
+
+# Cuts a release of this template with python-project-template's reusable
+# release workflow, in the mode that takes the next version from the latest
+# vX.Y.Z tag (a Copier template has no package version). It collects
+# changelog.d/ into CHANGELOG.md and opens a "Release vX.Y.Z" pull request.
+# Merging that pull request runs template-release-on-merge.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: >-
+          Version bump. auto picks minor when a fragment adds, changes,
+          deprecates or removes something, and patch when fragments only fix.
+          auto never picks major, which would leave the moving v1 tag behind.
+        type: choice
+        default: auto
+        options:
+          - auto
+          - patch
+          - minor
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prepare-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    # Moving major tag on purpose: release fixes arrive when
+    # python-project-template moves its v1, as they do for its own projects.
+    uses: Generality-Labs/python-project-template/.github/workflows/prepare-release.yml@v1 # zizmor: ignore[unpinned-uses]
+    permissions:
+      contents: write # push the release branch
+      pull-requests: write # open the release pull request
+    with:
+      bump: ${{ inputs.bump }}
+      version-source: tags
