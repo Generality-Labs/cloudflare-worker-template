@@ -150,7 +150,14 @@ jobs:
           git checkout -b "$BRANCH"
           git add -A
           git commit -m "chore: apply template updates from $REF"
-          git push --force-with-lease \
+          # The push goes to a URL rather than to `origin`, so a bare
+          # --force-with-lease has no remote-tracking ref to compare against
+          # and refuses with "stale info" whenever the branch already exists,
+          # which is every week after a run that pushed but couldn't open its
+          # PR. Lease against what checkout fetched instead; empty means the
+          # branch must not exist yet.
+          expect=$(git rev-parse -q --verify "refs/remotes/origin/$BRANCH" || true)
+          git push --force-with-lease="$BRANCH:$expect" \
             "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
 
           BODY="Applied by \`copier update --vcs-ref $REF\`."
