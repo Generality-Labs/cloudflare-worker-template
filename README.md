@@ -298,6 +298,12 @@ demand) and opens a PR when the template's *scaffolded files* have changed.
 Reusable-workflow changes need no update run: consumers pin `@v1`, so moving
 the tag propagates those immediately.
 
+The workflow opens its PR with the default `GITHUB_TOKEN`, which needs
+*Settings → Actions → General →* **Allow GitHub Actions to create and approve
+pull requests** turned on. Without it the run pushes `chore/template-update`
+and then fails with `GitHub Actions is not permitted to create or approve pull
+requests`.
+
 ## Adopt the template in an existing Worker repo
 
 `copier update` needs a `.copier-answers.yml` recording which template

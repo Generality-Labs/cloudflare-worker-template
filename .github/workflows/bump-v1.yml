@@ -106,6 +106,47 @@ jobs:
           print(f"changelog documents {version}, and [Unreleased] is empty")
           PY
 
+      # Runs after every refusal above, so a release that is going to be turned
+      # away never has its tag rewritten.
+      - name: Annotate the release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.sha }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          # The Move step below puts v1 on this same commit, and copier reads a
+          # template's version through dunamai, which takes the commit's newest
+          # tag by date. An annotated tag's date is when it was tagged; a
+          # lightweight tag's is its commit's. With both lightweight they tie on
+          # date and dunamai breaks the tie by name, which picks "v1". Copier
+          # then parses that as version 1 and records `_commit: v1` in every
+          # consumer's .copier-answers.yml, and a consumer above 1.0.0 can fail
+          # `copier update` with "Downgrades are not supported".
+          #
+          # Publishing a release for a tag that does not exist yet -- the GitHub
+          # UI's default, and `gh release create` without --verify-tag -- makes
+          # that tag lightweight. Rather than refuse the release over it, give
+          # the tag an annotation here so it outranks v1 and copier reads
+          # "v1.2.0". Annotating v1 too would break it again: v1 is re-tagged on
+          # every release, so it would always be the newer of the two.
+          #
+          # The rewrite keeps the same target commit, and the release references
+          # the tag by name, so the published release is unaffected. It lands
+          # seconds after publication, before the tag has realistically been
+          # fetched anywhere.
+          type=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" --jq .object.type)
+          if [ "$type" = "tag" ]; then
+            echo "${RELEASE_TAG} is already annotated"
+            exit 0
+          fi
+          tag_sha=$(gh api -X POST "repos/${GITHUB_REPOSITORY}/git/tags" \
+            -f tag="${RELEASE_TAG}" -f message="${RELEASE_TAG}" \
+            -f object="${RELEASE_SHA}" -f type=commit --jq .sha)
+          gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/${RELEASE_TAG}" \
+            -f sha="${tag_sha}" -F force=true
+          echo "${RELEASE_TAG} annotated as ${tag_sha} (still on ${RELEASE_SHA})"
+
       - name: Move v1
         env:
           GH_TOKEN: ${{ github.token }}
